@@ -1,0 +1,220 @@
+{% extends "base.html" %}
+{% block title %}BisLK — Discover Sri Lanka's Best Businesses{% endblock %}
+
+{% block content %}
+
+<!-- ═══════════════════════════════════════════
+     HERO  — search bar + headline
+════════════════════════════════════════════ -->
+<section class="bislk-hero">
+  <div class="container text-center">
+
+    <p class="text-warning fw-semibold mb-2 small text-uppercase letter-spacing-1">
+      <i class="fa fa-location-dot me-1"></i>Sri Lanka's Business Directory
+    </p>
+    <h1 class="hero-title mb-3">
+      Find the best businesses<br>
+      <span class="text-warning">near you</span>
+    </h1>
+    <p class="hero-sub mb-5">
+      Restaurants, hotels, salons and more — rated by real Sri Lankans.
+    </p>
+
+    <!-- Search bar -->
+    <div class="row justify-content-center">
+      <div class="col-12 col-md-8 col-lg-6">
+        <form class="hero-search-bar" action="{{ url_for('search') }}" method="GET">
+          <div class="input-group shadow-lg">
+            <input type="text" name="q" class="form-control"
+                   placeholder="e.g. Rice and curry in Colombo…"
+                   value="{{ request.args.get('q','') }}" />
+            <button class="btn btn-warning fw-semibold" type="submit">
+              <i class="fa fa-search me-1"></i>Search
+            </button>
+          </div>
+        </form>
+
+        <!-- Quick city pills -->
+        <div class="mt-3 d-flex justify-content-center flex-wrap gap-2">
+          {% for city in ['Colombo', 'Kandy', 'Galle'] %}
+          <a href="{{ url_for('search', city=city) }}"
+             class="badge rounded-pill text-decoration-none px-3 py-2"
+             style="background:rgba(255,255,255,0.12);color:rgba(255,255,255,0.85);font-size:0.8rem;font-weight:500;">
+            <i class="fa fa-location-dot me-1 text-warning"></i>{{ city }}
+          </a>
+          {% endfor %}
+          <a href="{{ url_for('nearby') }}"
+             class="badge rounded-pill text-decoration-none px-3 py-2"
+             style="background:rgba(245,166,35,0.25);color:#f5a623;font-size:0.8rem;font-weight:500;">
+            <i class="fa fa-crosshairs me-1"></i>Near me
+          </a>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════
+     CATEGORY CARDS
+════════════════════════════════════════════ -->
+<section class="py-5">
+  <div class="container">
+
+    <h2 class="section-title">
+      <span class="title-bar"></span>Browse by category
+    </h2>
+
+    <div class="row g-3">
+      {% for cat in categories %}
+      <div class="col-6 col-sm-4 col-md-3 col-lg-2">
+        <a href="{{ url_for('category', slug=cat.slug) }}" class="category-card h-100">
+          <div class="cat-icon">
+            <i class="{{ cat.icon }}"></i>
+          </div>
+          <div class="cat-name">{{ cat.name }}</div>
+        </a>
+      </div>
+      {% endfor %}
+
+      <!-- "All businesses" tile -->
+      <div class="col-6 col-sm-4 col-md-3 col-lg-2">
+        <a href="{{ url_for('search') }}" class="category-card h-100"
+           style="border-style:dashed;">
+          <div class="cat-icon" style="color:#aaa;">
+            <i class="fa fa-grid-2-plus"></i>
+          </div>
+          <div class="cat-name text-muted">All listings</div>
+        </a>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════
+     TOP RATED BUSINESSES
+════════════════════════════════════════════ -->
+<section class="py-4 pb-5" style="background:#fff;">
+  <div class="container">
+
+    <div class="d-flex align-items-center justify-content-between mb-4">
+      <h2 class="section-title mb-0">
+        <span class="title-bar"></span>Top rated
+      </h2>
+      <a href="{{ url_for('search') }}" class="btn btn-outline-secondary btn-sm">
+        View all <i class="fa fa-arrow-right ms-1"></i>
+      </a>
+    </div>
+
+    <div class="row g-4">
+      {% for biz in top_rated %}
+      <div class="col-12 col-sm-6 col-lg-4">
+        <a href="{{ url_for('business_detail', business_id=biz.business_id) }}"
+           class="business-card">
+
+          <!-- Image -->
+          {% if biz.primary_image %}
+          <img src="{{ biz.primary_image }}" class="card-img-top"
+               alt="{{ biz.name }}" data-fallback="1"
+               onerror="this.src='/static/img/placeholder.jpg'">
+          {% else %}
+          <div class="card-img-top placeholder-img">
+            <i class="fa fa-image"></i>
+          </div>
+          {% endif %}
+
+          <div class="card-body">
+            <!-- Category badge -->
+            <span class="badge-category mb-2 d-inline-block">
+              {{ biz.category }}
+            </span>
+
+            <div class="biz-name">{{ biz.name }}</div>
+
+            <!-- Stars -->
+            <div class="d-flex align-items-center gap-2 my-2">
+              <span class="rating-badge">{{ biz.avg_rating }}</span>
+              <span class="star-rating">
+                {% set full  = biz.avg_rating | int %}
+                {% set empty = 5 - full %}
+                {% for _ in range(full)  %}<i class="fa fa-star"></i>{% endfor %}
+                {% for _ in range(empty) %}<i class="fa fa-star empty"></i>{% endfor %}
+              </span>
+              <span class="biz-meta">({{ biz.review_count }} reviews)</span>
+            </div>
+
+            <div class="biz-meta">
+              <i class="fa fa-location-dot me-1 text-accent"></i>{{ biz.city }}
+            </div>
+          </div>
+        </a>
+      </div>
+      {% else %}
+      <div class="col-12 text-center text-muted py-4">
+        <i class="fa fa-store fa-2x mb-2 d-block"></i>
+        No businesses yet — <a href="{{ url_for('add_business') }}">add the first one!</a>
+      </div>
+      {% endfor %}
+    </div>
+
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════
+     STATS BANNER
+════════════════════════════════════════════ -->
+<section class="py-5" style="background:var(--bislk-primary);">
+  <div class="container">
+    <div class="row text-center text-white g-4">
+      <div class="col-6 col-md-3">
+        <div class="fw-bold" style="font-size:2rem;color:var(--bislk-accent);">
+          {{ top_rated | length }}+
+        </div>
+        <div class="small text-white-50 mt-1">Businesses listed</div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="fw-bold" style="font-size:2rem;color:var(--bislk-accent);">
+          {{ categories | length }}
+        </div>
+        <div class="small text-white-50 mt-1">Categories</div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="fw-bold" style="font-size:2rem;color:var(--bislk-accent);">3</div>
+        <div class="small text-white-50 mt-1">Cities covered</div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="fw-bold" style="font-size:2rem;color:var(--bislk-accent);">33+</div>
+        <div class="small text-white-50 mt-1">Verified reviews</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════
+     CTA — Add your business
+════════════════════════════════════════════ -->
+<section class="py-5">
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-12 col-md-8 col-lg-6 text-center">
+        <i class="fa fa-store fa-2x text-accent mb-3"></i>
+        <h3 class="fw-bold mb-2">Own a business?</h3>
+        <p class="text-muted mb-4">
+          Get your business in front of thousands of Sri Lankan customers.
+          Listing is free and takes less than two minutes.
+        </p>
+        <a href="{{ url_for('add_business') }}"
+           class="btn btn-warning fw-semibold px-5 py-2 shadow-sm">
+          <i class="fa fa-plus me-2"></i>Add your business
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+{% endblock %}

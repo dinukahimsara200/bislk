@@ -1,0 +1,310 @@
+{% extends "base.html" %}
+{% block title %}Add Your Business — BisLK{% endblock %}
+
+{% block content %}
+
+<!-- ═══════════════════════════════════════════
+     PAGE BANNER
+════════════════════════════════════════════ -->
+<section class="page-banner">
+  <div class="container">
+    <p class="text-warning fw-semibold small text-uppercase mb-1" style="letter-spacing:.08em;">
+      <i class="fa fa-store me-1"></i>Business Owner
+    </p>
+    <h1>List Your Business</h1>
+    <p>
+      Adding as <strong class="text-warning">{{ current_owner.name }}</strong>.
+      Fill in the details below — takes less than two minutes.
+    </p>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════
+     FORM
+════════════════════════════════════════════ -->
+<section class="py-5">
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-12 col-lg-9 col-xl-8">
+
+        <form method="POST" action="{{ url_for('add_business') }}" novalidate>
+
+          <!-- ════════════════════════════════
+               SECTION 1 — Core details
+          ════════════════════════════════ -->
+          <div class="form-card mb-4">
+            <h5 class="fw-bold mb-4" style="border-left:4px solid var(--bislk-accent);padding-left:12px;">
+              <i class="fa fa-circle-info me-2 text-accent"></i>Basic Information
+            </h5>
+
+            <!-- Business name + Category -->
+            <div class="row g-3 mb-3">
+              <div class="col-12 col-md-7">
+                <label class="form-label" for="biz-name">
+                  Business name <span class="text-danger">*</span>
+                </label>
+                <input type="text" class="form-control" id="biz-name" name="name"
+                       placeholder="e.g. The Rice Bowl"
+                       value="{{ request.form.get('name','') }}" required>
+              </div>
+              <div class="col-12 col-md-5">
+                <label class="form-label" for="category_id">
+                  Category <span class="text-danger">*</span>
+                </label>
+                <select class="form-select" id="category_id" name="category_id" required>
+                  <option value="" disabled
+                    {% if not request.form.get('category_id') %}selected{% endif %}>
+                    — Select category —
+                  </option>
+                  {% for cat in categories %}
+                  <option value="{{ cat.category_id }}"
+                          data-slug="{{ cat.slug }}"
+                          {% if request.form.get('category_id')|string == cat.category_id|string %}
+                          selected{% endif %}>
+                    {{ cat.name }}
+                  </option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+
+            <!-- Description -->
+            <div class="mb-3">
+              <label class="form-label" for="description">Description</label>
+              <textarea class="form-control" id="description" name="description"
+                        rows="3" placeholder="What makes your business special?">{{ request.form.get('description','') }}</textarea>
+            </div>
+
+            <!-- Address + City -->
+            <div class="row g-3 mb-3">
+              <div class="col-12 col-md-8">
+                <label class="form-label" for="address">
+                  Street address <span class="text-danger">*</span>
+                </label>
+                <input type="text" class="form-control" id="address" name="address"
+                       placeholder="45 Galle Road, Colombo 03"
+                       value="{{ request.form.get('address','') }}" required>
+              </div>
+              <div class="col-12 col-md-4">
+                <label class="form-label" for="city">
+                  City <span class="text-danger">*</span>
+                </label>
+                <select class="form-select" id="city" name="city" required>
+                  <option value="" disabled
+                    {% if not request.form.get('city') %}selected{% endif %}>— City —</option>
+                  {% for c in ['Colombo', 'Kandy', 'Galle'] %}
+                  <option value="{{ c }}"
+                    {% if request.form.get('city') == c %}selected{% endif %}>{{ c }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+
+            <!-- Lat / Lon (optional) -->
+            <div class="row g-3">
+              <div class="col-12 col-md-6">
+                <label class="form-label" for="latitude">
+                  Latitude
+                  <span class="text-muted fw-normal small">(optional — for Nearby feature)</span>
+                </label>
+                <input type="number" step="any" class="form-control" id="latitude"
+                       name="latitude" placeholder="e.g. 6.9271"
+                       value="{{ request.form.get('latitude','') }}">
+              </div>
+              <div class="col-12 col-md-6">
+                <label class="form-label" for="longitude">Longitude</label>
+                <input type="number" step="any" class="form-control" id="longitude"
+                       name="longitude" placeholder="e.g. 79.8612"
+                       value="{{ request.form.get('longitude','') }}">
+              </div>
+            </div>
+          </div>
+
+
+          <!-- ════════════════════════════════
+               SECTION 2 — Contact
+          ════════════════════════════════ -->
+          <div class="form-card mb-4">
+            <h5 class="fw-bold mb-4" style="border-left:4px solid var(--bislk-accent);padding-left:12px;">
+              <i class="fa fa-phone me-2 text-accent"></i>Contact Details
+            </h5>
+            <div class="row g-3">
+              <div class="col-12 col-md-4">
+                <label class="form-label" for="phone">Phone</label>
+                <input type="tel" class="form-control" id="phone" name="phone"
+                       placeholder="0112345678"
+                       value="{{ request.form.get('phone','') }}">
+              </div>
+              <div class="col-12 col-md-4">
+                <label class="form-label" for="email">Email</label>
+                <input type="email" class="form-control" id="email" name="email"
+                       placeholder="info@yourbusiness.com"
+                       value="{{ request.form.get('email','') }}">
+              </div>
+              <div class="col-12 col-md-4">
+                <label class="form-label" for="website">Website</label>
+                <input type="url" class="form-control" id="website" name="website"
+                       placeholder="https://yourbusiness.lk"
+                       value="{{ request.form.get('website','') }}">
+              </div>
+              <div class="col-12">
+                <label class="form-label" for="image_url">Primary image URL</label>
+                <input type="url" class="form-control" id="image_url" name="image_url"
+                       placeholder="https://… (link to your business photo)"
+                       value="{{ request.form.get('image_url','') }}">
+                <div class="form-text">Paste a direct link to a JPG/PNG. Leave blank to use a placeholder.</div>
+              </div>
+            </div>
+          </div>
+
+
+          <!-- ════════════════════════════════
+               SECTION 3 — Extension fields
+               Shown/hidden by JS based on category
+          ════════════════════════════════ -->
+
+          <!-- Restaurants -->
+          <div id="ext-restaurants" class="form-card mb-4 ext-fields">
+            <h5 class="fw-bold mb-4" style="border-left:4px solid var(--bislk-accent);padding-left:12px;">
+              <i class="fa fa-utensils me-2 text-accent"></i>Restaurant Details
+            </h5>
+            <div class="row g-3">
+              <div class="col-12 col-md-5">
+                <label class="form-label" for="cuisine_type">Cuisine type</label>
+                <input type="text" class="form-control" id="cuisine_type" name="cuisine_type"
+                       placeholder="e.g. Sri Lankan, Seafood"
+                       value="{{ request.form.get('cuisine_type','') }}">
+              </div>
+              <div class="col-12 col-md-3">
+                <label class="form-label" for="price_range">Price range</label>
+                <select class="form-select" id="price_range" name="price_range">
+                  {% for pr in ['$', '$$', '$$$', '$$$$'] %}
+                  <option value="{{ pr }}"
+                    {% if request.form.get('price_range', '$$') == pr %}selected{% endif %}>
+                    {{ pr }}
+                  </option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-12 col-md-4">
+                <label class="form-label" for="seating_capacity">Seating capacity</label>
+                <input type="number" class="form-control" id="seating_capacity"
+                       name="seating_capacity" min="1" placeholder="e.g. 80"
+                       value="{{ request.form.get('seating_capacity','') }}">
+              </div>
+              <div class="col-12">
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" id="has_delivery"
+                         name="has_delivery" value="1"
+                         {% if request.form.get('has_delivery') %}checked{% endif %}>
+                  <label class="form-check-label" for="has_delivery">
+                    Offers delivery
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Hotels -->
+          <div id="ext-hotels" class="form-card mb-4 ext-fields">
+            <h5 class="fw-bold mb-4" style="border-left:4px solid var(--bislk-accent);padding-left:12px;">
+              <i class="fa fa-hotel me-2 text-accent"></i>Hotel Details
+            </h5>
+            <div class="row g-3">
+              <div class="col-12 col-md-3">
+                <label class="form-label" for="star_rating">Star rating</label>
+                <select class="form-select" id="star_rating" name="star_rating">
+                  {% for s in [1,2,3,4,5] %}
+                  <option value="{{ s }}"
+                    {% if request.form.get('star_rating','3')|int == s %}selected{% endif %}>
+                    {{ s }} star{{ 's' if s > 1 else '' }}
+                  </option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-12 col-md-3">
+                <label class="form-label" for="total_rooms">Total rooms</label>
+                <input type="number" class="form-control" id="total_rooms" name="total_rooms"
+                       min="1" placeholder="e.g. 50"
+                       value="{{ request.form.get('total_rooms','') }}">
+              </div>
+              <div class="col-12 col-md-3">
+                <label class="form-label" for="check_in_time">Check-in</label>
+                <input type="time" class="form-control" id="check_in_time"
+                       name="check_in_time"
+                       value="{{ request.form.get('check_in_time','14:00') }}">
+              </div>
+              <div class="col-12 col-md-3">
+                <label class="form-label" for="check_out_time">Check-out</label>
+                <input type="time" class="form-control" id="check_out_time"
+                       name="check_out_time"
+                       value="{{ request.form.get('check_out_time','12:00') }}">
+              </div>
+              <div class="col-12">
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" id="has_pool"
+                         name="has_pool" value="1"
+                         {% if request.form.get('has_pool') %}checked{% endif %}>
+                  <label class="form-check-label" for="has_pool">Has swimming pool</label>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Salons -->
+          <div id="ext-salons" class="form-card mb-4 ext-fields">
+            <h5 class="fw-bold mb-4" style="border-left:4px solid var(--bislk-accent);padding-left:12px;">
+              <i class="fa fa-scissors me-2 text-accent"></i>Salon Details
+            </h5>
+            <div class="row g-3">
+              <div class="col-12 col-md-5">
+                <label class="form-label" for="services">Services offered</label>
+                <input type="text" class="form-control" id="services" name="services"
+                       placeholder="e.g. Haircut, Colouring, Bridal"
+                       value="{{ request.form.get('services','') }}">
+              </div>
+              <div class="col-12 col-md-3">
+                <label class="form-label" for="gender_served">Gender served</label>
+                <select class="form-select" id="gender_served" name="gender_served">
+                  {% for g in ['Unisex', 'Female', 'Male'] %}
+                  <option value="{{ g }}"
+                    {% if request.form.get('gender_served','Unisex') == g %}selected{% endif %}>
+                    {{ g }}
+                  </option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-12 col-md-4 d-flex align-items-end pb-1">
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" id="by_appointment"
+                         name="by_appointment" value="1"
+                         {% if request.form.get('by_appointment') %}checked{% endif %}>
+                  <label class="form-check-label" for="by_appointment">
+                    By appointment only
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+
+
+          <!-- ════════════════════════════════
+               SUBMIT
+          ════════════════════════════════ -->
+          <div class="d-flex gap-3 justify-content-end">
+            <a href="{{ url_for('home') }}" class="btn btn-outline-secondary px-4">
+              Cancel
+            </a>
+            <button type="submit" class="btn btn-warning fw-semibold px-5 py-2 shadow-sm">
+              <i class="fa fa-plus me-2"></i>Add Business
+            </button>
+          </div>
+
+        </form>
+      </div>
+    </div>
+  </div>
+</section>
+
+{% endblock %}

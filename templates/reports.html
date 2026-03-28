@@ -1,0 +1,694 @@
+{% extends "base.html" %}
+{% block title %}Reports — BisLK{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+
+<!-- ═══════════════════════════════════════════
+     PAGE BANNER
+════════════════════════════════════════════ -->
+<div class="page-banner">
+  <div class="container">
+    <nav class="mb-2" style="font-size:0.82rem;">
+      <a href="{{ url_for('home') }}" class="text-white-50 text-decoration-none">
+        <i class="fa fa-house me-1"></i>Home
+      </a>
+      <span class="text-white-50 mx-2">/</span>
+      <span class="text-white">Reports</span>
+    </nav>
+    <h1>Reports &amp; Analytics</h1>
+    <p class="mb-0">Four focused insights generated from live database queries.</p>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════
+     SUMMARY STAT CARDS
+════════════════════════════════════════════ -->
+<div class="container mt-4 mb-2">
+  <div class="row g-3 row-cols-2 row-cols-md-3 row-cols-lg-5">
+
+    <div class="col">
+      <div class="stat-card">
+        <div class="stat-icon" style="background:rgba(245,166,35,0.12);color:#f5a623;">
+          <i class="fa fa-store"></i>
+        </div>
+        <div class="stat-num">{{ latest_businesses | length > 0 and city_activity | sum(attribute='total_businesses') or '—' }}</div>
+        <div class="stat-label">Total businesses</div>
+      </div>
+    </div>
+
+    <div class="col">
+      <div class="stat-card">
+        <div class="stat-icon" style="background:rgba(29,158,117,0.12);color:#1D9E75;">
+          <i class="fa fa-comment"></i>
+        </div>
+        <div class="stat-num">{{ reviews_per_category | sum(attribute='total_reviews') }}</div>
+        <div class="stat-label">Total reviews</div>
+      </div>
+    </div>
+
+    <div class="col">
+      <div class="stat-card">
+        <div class="stat-icon" style="background:rgba(24,95,165,0.12);color:#185FA5;">
+          <i class="fa fa-tag"></i>
+        </div>
+        <div class="stat-num">{{ reviews_per_category | length }}</div>
+        <div class="stat-label">Active categories</div>
+      </div>
+    </div>
+
+    <div class="col">
+      <div class="stat-card">
+        <div class="stat-icon" style="background:rgba(153,60,29,0.1);color:#993C1D;">
+          <i class="fa fa-city"></i>
+        </div>
+        <div class="stat-num">{{ city_activity | length }}</div>
+        <div class="stat-label">Cities covered</div>
+      </div>
+    </div>
+
+    <div class="col">
+      <div class="stat-card">
+        <div class="stat-icon" style="background:rgba(142,68,173,0.12);color:#8e44ad;">
+          <i class="fa fa-users"></i>
+        </div>
+        <div class="stat-num">{{ total_users }}</div>
+        <div class="stat-label">Total users</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════
+     REPORT 1 — LATEST BUSINESS REGISTRATIONS
+════════════════════════════════════════════ -->
+<div class="container mt-4">
+  <div class="report-card">
+
+    <div class="report-title">
+      <i class="fa fa-clock-rotate-left me-2 text-accent"></i>
+      Report 1 — Latest business registrations
+    </div>
+    <p class="text-muted mb-4" style="font-size:0.85rem;">
+      The 10 most recently added businesses on the platform, ordered by registration date.
+      Useful for monitoring new onboarding activity.
+    </p>
+
+    <div class="table-responsive">
+      <table class="table table-bislk table-hover mb-0">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Business</th>
+            <th>Category</th>
+            <th>City</th>
+            <th class="text-end">Registered</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in latest_businesses %}
+          <tr>
+            <td class="text-muted fw-semibold">{{ loop.index }}</td>
+            <td>
+              <a href="{{ url_for('business_detail', business_id=row.business_id) }}"
+                 class="fw-semibold text-decoration-none"
+                 style="color:#1a1a2e;font-size:0.85rem;">
+                {{ row.name }}
+              </a>
+            </td>
+            <td><span class="badge-category">{{ row.category }}</span></td>
+            <td class="text-muted">{{ row.city }}</td>
+            <td class="text-end text-muted" style="font-size:0.8rem;">
+              {{ row.created_at.strftime('%d %b %Y') if row.created_at else '—' }}
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5" class="text-center text-muted py-3">No businesses yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <details class="mt-4">
+      <summary class="sql-toggle"><i class="fa fa-code me-1"></i>View SQL query</summary>
+      <pre class="sql-block mt-2"><code>SELECT b.business_id, b.name, b.city,
+       c.name AS category, b.created_at
+FROM businesses b
+JOIN categories c ON b.category_id = c.category_id
+ORDER BY b.created_at DESC
+LIMIT 10;</code></pre>
+    </details>
+
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════
+     REPORT 2 — TOTAL REVIEWS PER CATEGORY
+════════════════════════════════════════════ -->
+<div class="container mt-4">
+  <div class="report-card">
+
+    <div class="report-title">
+      <i class="fa fa-comments me-2 text-accent"></i>
+      Report 2 — Total reviews per category
+    </div>
+    <p class="text-muted mb-4" style="font-size:0.85rem;">
+      How many reviews each category has received. Reveals which verticals are most
+      actively engaged by the platform's user base.
+    </p>
+
+    <div class="row g-4 align-items-start">
+
+      <div class="col-12 col-md-5 d-flex flex-column align-items-center">
+        <div class="chart-sub-label w-100">Review share by category</div>
+        <div style="position:relative;height:240px;width:100%;max-width:280px;">
+          <canvas id="chartDoughnut"></canvas>
+        </div>
+      </div>
+
+      <div class="col-12 col-md-7">
+        <div class="chart-sub-label">Breakdown</div>
+        <div class="table-responsive">
+          <table class="table table-bislk table-hover mb-0">
+            <thead>
+              <tr>
+                <th>Category</th>
+                <th class="text-center">Total Reviews</th>
+                <th class="text-end">Share</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% set grand_total = reviews_per_category | sum(attribute='total_reviews') %}
+              {% for row in reviews_per_category %}
+              {% set pct = ((row.total_reviews / grand_total) * 100) | round(1) if grand_total > 0 else 0 %}
+              <tr>
+                <td class="fw-semibold">
+                  <span class="badge-category">{{ row.category }}</span>
+                </td>
+                <td class="text-center">
+                  <span class="fw-bold" style="color:#1a1a2e;">{{ row.total_reviews }}</span>
+                </td>
+                <td class="text-end">
+                  <div class="d-flex align-items-center justify-content-end gap-2">
+                    <div style="width:70px;height:6px;background:#f0f0f0;border-radius:3px;overflow:hidden;">
+                      <div style="width:{{ pct }}%;height:100%;background:#f5a623;border-radius:3px;"></div>
+                    </div>
+                    <span style="font-size:0.78rem;color:#6c757d;min-width:34px;">{{ pct }}%</span>
+                  </div>
+                </td>
+              </tr>
+              {% else %}
+              <tr><td colspan="3" class="text-center text-muted py-3">No data yet.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+    <details class="mt-4">
+      <summary class="sql-toggle"><i class="fa fa-code me-1"></i>View SQL query</summary>
+      <pre class="sql-block mt-2"><code>SELECT c.name          AS category,
+       COUNT(r.review_id) AS total_reviews
+FROM categories c
+JOIN businesses b ON b.category_id = c.category_id
+JOIN reviews r    ON r.business_id  = b.business_id
+GROUP BY c.name
+ORDER BY total_reviews DESC;</code></pre>
+    </details>
+
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════
+     REPORT 3 — AVERAGE RATING PER CATEGORY
+════════════════════════════════════════════ -->
+<div class="container mt-4">
+  <div class="report-card">
+
+    <div class="report-title">
+      <i class="fa fa-star me-2 text-accent"></i>
+      Report 3 — Average rating per category
+    </div>
+    <p class="text-muted mb-4" style="font-size:0.85rem;">
+      The mean star rating across all reviewed businesses in each category.
+      Highlights which verticals consistently deliver quality experiences.
+    </p>
+
+    <div class="row g-4 align-items-start">
+
+      <div class="col-12 col-md-6">
+        <div class="chart-sub-label">Avg. rating by category</div>
+        <div style="position:relative;height:220px;">
+          <canvas id="chartBar"></canvas>
+        </div>
+      </div>
+
+      <div class="col-12 col-md-6">
+        <div class="chart-sub-label">Scores</div>
+        <div class="table-responsive">
+          <table class="table table-bislk table-hover mb-0">
+            <thead>
+              <tr>
+                <th>Category</th>
+                <th class="text-center">Avg. Rating</th>
+                <th>Visual</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in avg_rating_per_category %}
+              {% set rating_f = row.avg_rating | float %}
+              {% set bar_pct  = ((rating_f / 5.0) * 100) | int %}
+              <tr>
+                <td><span class="badge-category">{{ row.category }}</span></td>
+                <td class="text-center">
+                  <span class="rating-badge">{{ row.avg_rating }}</span>
+                </td>
+                <td>
+                  <div style="height:8px;background:#f0f0f0;border-radius:4px;overflow:hidden;min-width:80px;">
+                    <div style="width:{{ bar_pct }}%;height:100%;border-radius:4px;
+                                background:{% if rating_f >= 4.5 %}#27ae60
+                                {% elif rating_f >= 4.0 %}#2ecc71
+                                {% elif rating_f >= 3.0 %}#f5a623
+                                {% else %}#e74c3c{% endif %};
+                                transition:width 0.6s ease;"></div>
+                  </div>
+                </td>
+              </tr>
+              {% else %}
+              <tr><td colspan="3" class="text-center text-muted py-3">No data yet.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+    <details class="mt-4">
+      <summary class="sql-toggle"><i class="fa fa-code me-1"></i>View SQL query</summary>
+      <pre class="sql-block mt-2"><code>SELECT c.name                   AS category,
+       ROUND(AVG(r.rating), 1)  AS avg_rating
+FROM categories c
+JOIN businesses b ON b.category_id = c.category_id
+JOIN reviews r    ON r.business_id  = b.business_id
+GROUP BY c.name
+ORDER BY avg_rating DESC;</code></pre>
+    </details>
+
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════
+     REPORT 4 — PLATFORM ACTIVITY BY CITY
+════════════════════════════════════════════ -->
+<div class="container mt-4 mb-5">
+  <div class="report-card">
+
+    <div class="report-title">
+      <i class="fa fa-city me-2 text-accent"></i>
+      Report 4 — Platform activity by city
+    </div>
+    <p class="text-muted mb-4" style="font-size:0.85rem;">
+      Total businesses and total reviews per city. Identifies which locations are
+      most active and where coverage gaps may exist.
+    </p>
+
+    <div class="row g-4 align-items-start">
+
+      <div class="col-12 col-md-5">
+        <div class="chart-sub-label">Businesses vs reviews by city</div>
+        <div style="position:relative;height:240px;">
+          <canvas id="chartCity"></canvas>
+        </div>
+      </div>
+
+      <div class="col-12 col-md-7">
+        <div class="chart-sub-label">City breakdown</div>
+        <div class="table-responsive">
+          <table class="table table-bislk table-hover mb-0">
+            <thead>
+              <tr>
+                <th>City</th>
+                <th class="text-center">Businesses</th>
+                <th class="text-center">Reviews</th>
+                <th class="text-end">Reviews / Business</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in city_activity %}
+              {% set ratio = (row.total_reviews / row.total_businesses) | round(1) if row.total_businesses > 0 else 0 %}
+              <tr>
+                <td class="fw-semibold">
+                  <i class="fa fa-location-dot me-1 text-accent"></i>{{ row.city }}
+                </td>
+                <td class="text-center">{{ row.total_businesses }}</td>
+                <td class="text-center">{{ row.total_reviews }}</td>
+                <td class="text-end">
+                  <span class="rating-badge" style="background:#185FA5;">{{ ratio }}</span>
+                </td>
+              </tr>
+              {% else %}
+              <tr><td colspan="4" class="text-center text-muted py-3">No data yet.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+    <details class="mt-4">
+      <summary class="sql-toggle"><i class="fa fa-code me-1"></i>View SQL query</summary>
+      <pre class="sql-block mt-2"><code>SELECT b.city,
+       COUNT(DISTINCT b.business_id) AS total_businesses,
+       COUNT(r.review_id)            AS total_reviews
+FROM businesses b
+LEFT JOIN reviews r ON b.business_id = r.business_id
+GROUP BY b.city
+ORDER BY total_businesses DESC;</code></pre>
+    </details>
+
+  </div>
+</div>
+
+
+
+<!-- ═══════════════════════════════════════════
+     REPORT 5 — USER DISTRIBUTION MAP
+════════════════════════════════════════════ -->
+<div class="container mt-4 mb-5">
+  <div class="report-card">
+
+    <div class="report-title">
+      <i class="fa fa-map-location-dot me-2 text-accent"></i>
+      Report 5 — User distribution across Sri Lanka
+    </div>
+    <p class="text-muted mb-4" style="font-size:0.85rem;">
+      Geographic spread of registered users based on their saved latitude and longitude.
+      Each pin represents one user account.
+    </p>
+
+    <div class="row g-4 align-items-start">
+
+      <!-- Map panel -->
+      <div class="col-12 col-lg-8">
+        <div class="chart-sub-label">Interactive map</div>
+        <div id="userMap" style="height:460px;border-radius:10px;border:1px solid #e9ecef;
+                                  overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.07);"></div>
+        <p class="text-muted mt-2" style="font-size:0.75rem;">
+          <i class="fa fa-circle me-1" style="color:#f5a623;"></i>Each marker is one user &nbsp;·&nbsp;
+          Click a marker to see the user's city.
+        </p>
+      </div>
+
+      <!-- Sidebar: city counts -->
+      <div class="col-12 col-lg-4">
+        <div class="chart-sub-label">Users per city</div>
+        <div class="table-responsive">
+          <table class="table table-bislk table-hover mb-0">
+            <thead>
+              <tr>
+                <th>City</th>
+                <th class="text-center">Users</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% set total_mapped = user_city_counts | sum(attribute='user_count') %}
+              {% for row in user_city_counts %}
+              {% set city_pct = ((row.user_count / total_mapped) * 100) | round(1) if total_mapped > 0 else 0 %}
+              <tr>
+                <td class="fw-semibold">
+                  <i class="fa fa-location-dot me-1 text-accent"></i>{{ row.city or 'Unknown' }}
+                </td>
+                <td class="text-center">
+                  <span class="fw-bold" style="color:#1a1a2e;">{{ row.user_count }}</span>
+                  <span class="text-muted" style="font-size:0.75rem;"> ({{ city_pct }}%)</span>
+                </td>
+              </tr>
+              {% else %}
+              <tr><td colspan="2" class="text-center text-muted py-3">No location data.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Total mapped users mini-card -->
+        <div class="mt-3 p-3 rounded-3" style="background:#f8f9fb;border:1px solid #eee;">
+          <div style="font-size:0.72rem;color:#6c757d;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;">
+            Mapped users
+          </div>
+          <div style="font-size:1.6rem;font-weight:700;color:#1a1a2e;line-height:1.2;">
+            {{ user_map_points | length }}
+          </div>
+          <div style="font-size:0.75rem;color:#6c757d;">with saved coordinates</div>
+        </div>
+      </div>
+
+    </div>
+
+    <details class="mt-4">
+      <summary class="sql-toggle"><i class="fa fa-code me-1"></i>View SQL queries</summary>
+      <pre class="sql-block mt-2"><code>-- Map points (one row per user)
+SELECT city, latitude, longitude
+FROM users
+WHERE latitude IS NOT NULL
+  AND longitude IS NOT NULL;
+
+-- City summary
+SELECT city, COUNT(*) AS user_count
+FROM users
+WHERE latitude IS NOT NULL
+  AND longitude IS NOT NULL
+GROUP BY city
+ORDER BY user_count DESC;</code></pre>
+    </details>
+
+  </div>
+</div>
+
+{% endblock %}
+
+
+{% block extra_scripts %}
+
+{# ── JSON data islands ──────────────────────────────────────────── #}
+{# ── User map data ──────────────────────────────────────────────── #}
+<script type="application/json" id="data-usermap">{{ user_map_points | tojson }}</script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+/* ── Report 5: Leaflet user distribution map ─────────── */
+(function() {
+  var points = JSON.parse(document.getElementById('data-usermap').textContent);
+  if (!points.length) return;
+
+  /* Centre on Sri Lanka */
+  var map = L.map('userMap', { zoomControl: true, scrollWheelZoom: false })
+              .setView([7.8731, 80.7718], 7);
+
+  /* Tile layer — OpenStreetMap */
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    maxZoom: 18
+  }).addTo(map);
+
+  /* Custom amber marker icon matching BisLK accent colour */
+  var amberIcon = L.divIcon({
+    className: '',
+    html: '<div style="width:10px;height:10px;background:#f5a623;border:2px solid #1a1a2e;' +
+          'border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.35);"></div>',
+    iconSize: [10, 10],
+    iconAnchor: [5, 5],
+    popupAnchor: [0, -8]
+  });
+
+  /* Plot every user point */
+  points.forEach(function(p) {
+    L.marker([p.latitude, p.longitude], { icon: amberIcon })
+     .bindPopup('<div style="font-family:Inter,sans-serif;font-size:0.82rem;">' +
+                '<i class=\'fa fa-location-dot\' style=\'color:#f5a623;\'></i> ' +
+                '<strong>' + p.city + '</strong></div>',
+                { maxWidth: 160 })
+     .addTo(map);
+  });
+})();
+</script>
+<script type="application/json" id="data-doughnut">{{ reviews_per_category  | tojson }}</script>
+<script type="application/json" id="data-bar">{{ avg_rating_per_category | tojson }}</script>
+<script type="application/json" id="data-city">{{ city_activity           | tojson }}</script>
+
+<script>
+/* ── Shared defaults ──────────────────────────────────── */
+Chart.defaults.font.family = "'Inter', sans-serif";
+Chart.defaults.font.size   = 12;
+Chart.defaults.color       = '#6c757d';
+
+const PALETTE = [
+  'rgba(245,166,35,0.85)',
+  'rgba(26,26,46,0.78)',
+  'rgba(29,158,117,0.78)',
+  'rgba(24,95,165,0.78)',
+  'rgba(153,60,29,0.78)',
+  'rgba(142,68,173,0.75)',
+];
+
+/* ── Chart 1: Doughnut — reviews per category ─────────── */
+(function() {
+  var raw    = JSON.parse(document.getElementById('data-doughnut').textContent);
+  var labels = raw.map(function(r) { return r.category; });
+  var data   = raw.map(function(r) { return r.total_reviews; });
+  new Chart(document.getElementById('chartDoughnut'), {
+    type: 'doughnut',
+    data: {
+      labels: labels,
+      datasets: [{ data: data, backgroundColor: PALETTE,
+                   borderWidth: 2, borderColor: '#fff', hoverOffset: 6 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      cutout: '62%',
+      plugins: {
+        legend: { position: 'bottom', labels: { boxWidth: 12, padding: 12 } },
+        tooltip: { callbacks: {
+          label: function(c) { return '  ' + c.label + ': ' + c.parsed + ' reviews'; }
+        }}
+      }
+    }
+  });
+})();
+
+/* ── Chart 2: Bar — avg rating per category ───────────── */
+(function() {
+  var raw    = JSON.parse(document.getElementById('data-bar').textContent);
+  var labels = raw.map(function(r) { return r.category; });
+  var data   = raw.map(function(r) { return r.avg_rating; });
+  new Chart(document.getElementById('chartBar'), {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{ label: 'Avg. rating', data: data,
+        backgroundColor: PALETTE, borderRadius: 6, borderSkipped: false }]
+    },
+    options: {
+      indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: {
+          label: function(c) { return '  ' + c.parsed.x + ' / 5.0'; }
+        }}
+      },
+      scales: {
+        x: { min: 0, max: 5, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { stepSize: 1 } },
+        y: { grid: { display: false }, ticks: { font: { weight: '500' } } }
+      }
+    }
+  });
+})();
+
+/* ── Chart 3: Grouped bar — city activity ─────────────── */
+(function() {
+  var raw       = JSON.parse(document.getElementById('data-city').textContent);
+  var labels    = raw.map(function(r) { return r.city; });
+  var biz       = raw.map(function(r) { return r.total_businesses; });
+  var reviews   = raw.map(function(r) { return r.total_reviews; });
+  new Chart(document.getElementById('chartCity'), {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [
+        { label: 'Businesses', data: biz,
+          backgroundColor: 'rgba(26,26,46,0.78)', borderRadius: 5, borderSkipped: false },
+        { label: 'Reviews', data: reviews,
+          backgroundColor: 'rgba(245,166,35,0.85)', borderRadius: 5, borderSkipped: false }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'top', labels: { boxWidth: 12 } } },
+      scales: {
+        x: { grid: { display: false } },
+        y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { precision: 0 } }
+      }
+    }
+  });
+})();
+</script>
+
+
+<style>
+/* ── Stat cards ─────────────────────────────────────── */
+.stat-card {
+  background: #fff;
+  border: 1px solid #eee;
+  border-radius: 12px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+.stat-icon {
+  width: 36px; height: 36px;
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.95rem;
+  margin-bottom: 2px;
+}
+.stat-num   { font-size: 1.7rem; font-weight: 700; color: #1a1a2e; line-height: 1; }
+.stat-label { font-size: 0.78rem; color: #6c757d; font-weight: 500; }
+
+/* ── Chart sub-label ─────────────────────────────────── */
+.chart-sub-label {
+  font-size: 0.8rem; font-weight: 600;
+  color: #6c757d;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 10px;
+}
+
+/* ── SQL block ───────────────────────────────────────── */
+.sql-block {
+  background: #1e1e2e;
+  border-radius: 8px;
+  padding: 14px 16px;
+  overflow-x: auto;
+  font-size: 0.8rem;
+  line-height: 1.7;
+}
+.sql-block code { color: #cdd6f4; font-family: 'Consolas', 'Courier New', monospace; }
+.sql-toggle {
+  font-size: 0.8rem;
+  color: #6c757d;
+  cursor: pointer;
+  user-select: none;
+}
+details summary::-webkit-details-marker { color: #6c757d; }
+/* ── Leaflet map overrides ───────────────────── */
+#userMap .leaflet-popup-content-wrapper {
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  padding: 0;
+}
+#userMap .leaflet-popup-content { margin: 8px 12px; }
+#userMap .leaflet-attribution-flag { display: none !important; }
+.leaflet-control-zoom a {
+  color: #1a1a2e !important;
+  font-weight: 700;
+}
+
+</style>
+{% endblock %}

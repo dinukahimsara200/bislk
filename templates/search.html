@@ -1,0 +1,251 @@
+{% extends "base.html" %}
+{% block title %}
+  {% if page_title %}{{ page_title }}{% elif query %}Results for "{{ query }}"{% else %}Browse Businesses{% endif %}
+   — BisLK
+{% endblock %}
+
+{% block content %}
+
+<!-- ═══════════════════════════════════════════
+     PAGE BANNER
+════════════════════════════════════════════ -->
+<div class="page-banner">
+  <div class="container">
+    <div class="d-flex align-items-center gap-2 mb-1">
+      <a href="{{ url_for('home') }}" class="text-white-50 text-decoration-none small">
+        <i class="fa fa-house me-1"></i>Home
+      </a>
+      <span class="text-white-50 small">/</span>
+      <span class="text-white small">
+        {% if page_title %}{{ page_title }}{% else %}Search{% endif %}
+      </span>
+    </div>
+
+    <div class="d-flex flex-wrap align-items-end justify-content-between gap-3">
+      <div>
+        <h1>
+          {% if page_title %}
+            {{ page_title }}
+          {% elif query %}
+            Results for "<span class="text-warning">{{ query }}</span>"
+          {% else %}
+            All businesses
+          {% endif %}
+        </h1>
+        <p class="mb-0">
+          <span class="text-warning fw-semibold">{{ result_count }}</span>
+          business{{ 'es' if result_count != 1 else '' }} found
+          {% if selected_city %} in <strong>{{ selected_city }}</strong>{% endif %}
+        </p>
+      </div>
+
+      <!-- Mobile: compact search -->
+      <form class="d-flex d-md-none w-100" action="{{ url_for('search') }}" method="GET">
+        <input type="text" name="q" class="form-control form-control-sm"
+               placeholder="Refine search…" value="{{ query }}" />
+        <button class="btn btn-warning btn-sm ms-2" type="submit">
+          <i class="fa fa-search"></i>
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════
+     MAIN LAYOUT  —  Sidebar + Results grid
+════════════════════════════════════════════ -->
+<div class="container py-4">
+  <div class="row g-4">
+
+    <!-- ── FILTER SIDEBAR ───────────────────── -->
+    <div class="col-12 col-md-3">
+      <div class="filter-sidebar">
+        <form action="{{ url_for('search') }}" method="GET" id="filter-form">
+
+          <!-- Keyword (hidden carry-through) -->
+          {% if query %}
+          <input type="hidden" name="q" value="{{ query }}" />
+          {% endif %}
+
+          <!-- Category filter -->
+          <div class="mb-4">
+            <div class="filter-title">
+              <i class="fa fa-tag me-1"></i>Category
+            </div>
+            <div class="d-flex flex-column gap-1">
+              <a href="{{ url_for('search', q=query, city=selected_city) }}"
+                 class="filter-option {{ 'active' if not selected_category else '' }}">
+                All categories
+              </a>
+              {% for cat in categories %}
+              <a href="{{ url_for('search', q=query, category_id=cat.category_id, city=selected_city) }}"
+                 class="filter-option {{ 'active' if selected_category == cat.category_id|string else '' }}">
+                <i class="{{ cat.icon }} me-2 text-accent"></i>{{ cat.name }}
+              </a>
+              {% endfor %}
+            </div>
+          </div>
+
+          <!-- City filter -->
+          {% if cities %}
+          <div class="mb-4">
+            <div class="filter-title">
+              <i class="fa fa-city me-1"></i>City
+            </div>
+            <div class="d-flex flex-column gap-1">
+              <a href="{{ url_for('search', q=query, category_id=selected_category) }}"
+                 class="filter-option {{ 'active' if not selected_city else '' }}">
+                All cities
+              </a>
+              {% for c in cities %}
+              <a href="{{ url_for('search', q=query, category_id=selected_category, city=c) }}"
+                 class="filter-option {{ 'active' if selected_city == c else '' }}">
+                <i class="fa fa-location-dot me-2 text-accent"></i>{{ c }}
+              </a>
+              {% endfor %}
+            </div>
+          </div>
+          {% endif %}
+
+          <!-- Nearby shortcut -->
+          <hr class="section-divider">
+          <a href="{{ url_for('nearby') }}" class="btn btn-outline-secondary btn-sm w-100">
+            <i class="fa fa-crosshairs me-1"></i>Show nearby me
+          </a>
+
+        </form>
+      </div>
+    </div>
+
+
+    <!-- ── RESULTS GRID ──────────────────────── -->
+    <div class="col-12 col-md-9">
+
+      {% if results %}
+
+      <!-- Sort bar -->
+      <div class="d-flex align-items-center justify-content-between mb-3">
+        <span class="text-muted small">
+          Sorted by <strong>top rated</strong>
+        </span>
+        <a href="{{ url_for('add_business') }}"
+           class="btn btn-sm btn-warning fw-semibold d-none d-sm-inline-flex">
+          <i class="fa fa-plus me-1"></i>Add business
+        </a>
+      </div>
+
+      <div class="row g-3">
+        {% for biz in results %}
+        <div class="col-12 col-sm-6 col-xl-4">
+          <a href="{{ url_for('business_detail', business_id=biz.business_id) }}"
+             class="business-card">
+
+            <!-- Business image -->
+            {% if biz.primary_image %}
+            <img src="{{ biz.primary_image }}" class="card-img-top"
+                 alt="{{ biz.name }}" data-fallback="1"
+                 onerror="this.src='/static/img/placeholder.jpg'">
+            {% else %}
+            <div class="card-img-top placeholder-img">
+              <i class="fa fa-image"></i>
+            </div>
+            {% endif %}
+
+            <div class="card-body">
+              <span class="badge-category mb-1 d-inline-block">
+                {% if biz.category_icon %}
+                <i class="{{ biz.category_icon }} me-1"></i>
+                {% endif %}
+                {{ biz.category }}
+              </span>
+
+              <div class="biz-name mt-1">{{ biz.name }}</div>
+
+              <!-- Rating row -->
+              <div class="d-flex align-items-center gap-2 my-2">
+                {% if biz.avg_rating and biz.avg_rating > 0 %}
+                  <span class="rating-badge">{{ biz.avg_rating }}</span>
+                  <span class="star-rating">
+                    {% set full  = biz.avg_rating | int %}
+                    {% set empty = 5 - full %}
+                    {% for _ in range(full)  %}<i class="fa fa-star"></i>{% endfor %}
+                    {% for _ in range(empty) %}<i class="fa fa-star empty"></i>{% endfor %}
+                  </span>
+                  <span class="biz-meta">({{ biz.review_count }})</span>
+                {% else %}
+                  <span class="biz-meta text-muted">No reviews yet</span>
+                {% endif %}
+              </div>
+
+              <div class="biz-meta">
+                <i class="fa fa-location-dot me-1 text-accent"></i>
+                {{ biz.city }}
+                {% if biz.address %}
+                  &nbsp;·&nbsp;{{ biz.address | truncate(35, True, '…') }}
+                {% endif %}
+              </div>
+
+              <!-- Distance badge (nearby results only) -->
+              {% if biz.distance_km is defined and biz.distance_km %}
+              <div class="mt-2">
+                <span class="badge rounded-pill"
+                      style="background:rgba(26,26,46,0.08);color:var(--bislk-primary);font-size:0.75rem;">
+                  <i class="fa fa-route me-1"></i>
+                  {{ "%.1f"|format(biz.distance_km) }} km away
+                </span>
+              </div>
+              {% endif %}
+
+            </div>
+          </a>
+        </div>
+        {% endfor %}
+      </div>
+
+      {% else %}
+      <!-- ── Empty state ─────────────────────── -->
+      <div class="text-center py-5">
+        <i class="fa fa-magnifying-glass fa-3x text-muted mb-3 d-block"></i>
+        <h5 class="text-muted fw-semibold">No businesses found</h5>
+        <p class="text-muted small mb-4">
+          Try a different keyword, category or city.
+        </p>
+        <div class="d-flex justify-content-center gap-3 flex-wrap">
+          <a href="{{ url_for('search') }}" class="btn btn-outline-secondary btn-sm">
+            Clear filters
+          </a>
+          <a href="{{ url_for('add_business') }}" class="btn btn-warning btn-sm fw-semibold">
+            <i class="fa fa-plus me-1"></i>Add a business
+          </a>
+        </div>
+      </div>
+      {% endif %}
+
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+
+{% block extra_scripts %}
+<style>
+/* Filter option links */
+.filter-option {
+  display: block;
+  padding: 7px 10px;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  color: var(--bs-body-color);
+  text-decoration: none;
+  transition: background 0.14s;
+}
+.filter-option:hover { background: #f5f5f5; color: inherit; }
+.filter-option.active {
+  background: rgba(245,166,35,0.12);
+  color: #c47d00;
+  font-weight: 600;
+}
+</style>
+{% endblock %}

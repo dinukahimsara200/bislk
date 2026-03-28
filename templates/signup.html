@@ -1,0 +1,373 @@
+{% extends "base.html" %}
+{% block title %}Create Account — BisLK{% endblock %}
+
+{% block content %}
+
+<!-- ═══════════════════════════════════════════
+     PAGE BANNER
+════════════════════════════════════════════ -->
+<section class="page-banner">
+  <div class="container">
+    <div class="row align-items-center">
+      <div class="col">
+        <p class="text-warning fw-semibold small text-uppercase mb-1" style="letter-spacing:.08em;">
+          <i class="fa fa-user-plus me-1"></i>Join BisLK
+        </p>
+        <h1>Create Your Account</h1>
+        <p>Free to join — pick your account type below.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════
+     SIGNUP CARD
+════════════════════════════════════════════ -->
+<section class="py-5">
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-12 col-sm-10 col-md-8 col-lg-6">
+
+        <!-- ── Role tabs ─────────────────────── -->
+        <div class="auth-tab-group mb-4">
+          <button class="auth-tab {% if role != 'owner' %}active{% endif %}"
+                  id="tab-user" type="button"
+                  onclick="switchTab('user')">
+            <i class="fa fa-user me-2"></i>I'm a Customer
+          </button>
+          <button class="auth-tab {% if role == 'owner' %}active{% endif %}"
+                  id="tab-owner" type="button"
+                  onclick="switchTab('owner')">
+            <i class="fa fa-store me-2"></i>I'm a Business Owner
+          </button>
+        </div>
+
+        <!-- ── Form card ──────────────────────── -->
+        <div class="form-card">
+
+          <!-- ════ USER SIGNUP FORM ════ -->
+          <div id="form-user" class="auth-form {% if role == 'owner' %}d-none{% endif %}">
+
+            <h5 class="fw-bold mb-1">Customer Account</h5>
+            <p class="text-muted small mb-4">
+              Write reviews, discover businesses nearby, and more.
+            </p>
+
+            <form method="POST" action="{{ url_for('signup') }}" novalidate>
+              <input type="hidden" name="role" value="user">
+
+              <!-- Name + Phone side by side on md+ -->
+              <div class="row g-3 mb-3">
+                <div class="col-12 col-md-7">
+                  <label class="form-label" for="u-name">
+                    <i class="fa fa-id-card me-1 text-accent"></i>Full name <span class="text-danger">*</span>
+                  </label>
+                  <input type="text" class="form-control" id="u-name"
+                         name="full_name" placeholder="Kavindu Perera"
+                         value="{{ request.form.get('full_name','') if role != 'owner' else '' }}"
+                         required autocomplete="name">
+                </div>
+                <div class="col-12 col-md-5">
+                  <label class="form-label" for="u-phone">
+                    <i class="fa fa-phone me-1 text-accent"></i>Phone
+                    <span class="text-muted fw-normal">(optional)</span>
+                  </label>
+                  <input type="tel" class="form-control" id="u-phone"
+                         name="phone" placeholder="07X XXX XXXX"
+                         value="{{ request.form.get('phone','') if role != 'owner' else '' }}"
+                         autocomplete="tel">
+                </div>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label" for="u-email">
+                  <i class="fa fa-envelope me-1 text-accent"></i>Email address <span class="text-danger">*</span>
+                </label>
+                <input type="email" class="form-control" id="u-email"
+                       name="email" placeholder="you@example.com"
+                       value="{{ request.form.get('email','') if role != 'owner' else '' }}"
+                       required autocomplete="email">
+              </div>
+
+              <div class="row g-3 mb-3">
+                <div class="col-12 col-md-6">
+                  <label class="form-label" for="u-pw">
+                    <i class="fa fa-lock me-1 text-accent"></i>Password <span class="text-danger">*</span>
+                  </label>
+                  <div class="input-group">
+                    <input type="password" class="form-control" id="u-pw"
+                           name="password" placeholder="Min. 6 characters"
+                           required autocomplete="new-password"
+                           oninput="checkStrength(this.value, 'u-strength')">
+                    <button class="btn btn-outline-secondary btn-sm px-3"
+                            type="button" onclick="togglePwd('u-pw', this)" tabindex="-1">
+                      <i class="fa fa-eye"></i>
+                    </button>
+                  </div>
+                  <div id="u-strength" class="strength-bar mt-2" style="display:none;">
+                    <div class="strength-fill"></div>
+                    <span class="strength-label"></span>
+                  </div>
+                </div>
+                <div class="col-12 col-md-6">
+                  <label class="form-label" for="u-pw2">
+                    <i class="fa fa-lock me-1 text-accent"></i>Confirm password <span class="text-danger">*</span>
+                  </label>
+                  <div class="input-group">
+                    <input type="password" class="form-control" id="u-pw2"
+                           name="confirm_password" placeholder="Repeat password"
+                           required autocomplete="new-password">
+                    <button class="btn btn-outline-secondary btn-sm px-3"
+                            type="button" onclick="togglePwd('u-pw2', this)" tabindex="-1">
+                      <i class="fa fa-eye"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- ── Location (optional) ──────── -->
+              <hr class="section-divider">
+              <p class="fw-semibold small mb-3">
+                <i class="fa fa-location-dot me-1 text-accent"></i>Your location
+                <span class="text-muted fw-normal">(optional — used for Nearby search)</span>
+              </p>
+
+              <div class="mb-3">
+                <label class="form-label" for="u-city">City</label>
+                <select class="form-select" id="u-city" name="city">
+                  <option value="" {% if not request.form.get('city') %}selected{% endif %}>— Select your city —</option>
+                  {% for c in ['Colombo', 'Kandy', 'Galle'] %}
+                  <option value="{{ c }}"
+                    {% if request.form.get('city') == c %}selected{% endif %}>{{ c }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+
+              <div class="row g-3 mb-3">
+                <div class="col-12 col-md-6">
+                  <label class="form-label" for="u-lat">Latitude</label>
+                  <input type="number" step="any" class="form-control" id="u-lat"
+                         name="latitude" placeholder="e.g. 6.9271"
+                         value="{{ request.form.get('latitude','') if role != 'owner' else '' }}">
+                </div>
+                <div class="col-12 col-md-6">
+                  <label class="form-label" for="u-lon">Longitude</label>
+                  <input type="number" step="any" class="form-control" id="u-lon"
+                         name="longitude" placeholder="e.g. 79.8612"
+                         value="{{ request.form.get('longitude','') if role != 'owner' else '' }}">
+                </div>
+              </div>
+
+              <button type="button" class="btn btn-outline-secondary btn-sm w-100 mb-4"
+                      onclick="detectSignupLocation()">
+                <i class="fa fa-crosshairs me-1 text-accent"></i>Detect my location automatically
+              </button>
+
+              <div class="d-grid">
+                <button type="submit" class="btn btn-warning fw-semibold py-2">
+                  <i class="fa fa-user-plus me-2"></i>Create Customer Account
+                </button>
+              </div>
+            </form>
+          </div>
+
+
+          <!-- ════ OWNER SIGNUP FORM ════ -->
+          <div id="form-owner" class="auth-form {% if role != 'owner' %}d-none{% endif %}">
+
+            <h5 class="fw-bold mb-1">Business Owner Account</h5>
+            <p class="text-muted small mb-4">
+              List your business, manage listings, and reach Sri Lankan customers.
+            </p>
+
+            <form method="POST" action="{{ url_for('signup') }}" novalidate>
+              <input type="hidden" name="role" value="owner">
+
+              <div class="row g-3 mb-3">
+                <div class="col-12 col-md-7">
+                  <label class="form-label" for="o-name">
+                    <i class="fa fa-id-card me-1 text-accent"></i>Full name <span class="text-danger">*</span>
+                  </label>
+                  <input type="text" class="form-control" id="o-name"
+                         name="full_name" placeholder="Sanduni Fernando"
+                         value="{{ request.form.get('full_name','') if role == 'owner' else '' }}"
+                         required autocomplete="name">
+                </div>
+                <div class="col-12 col-md-5">
+                  <label class="form-label" for="o-phone">
+                    <i class="fa fa-phone me-1 text-accent"></i>Phone
+                    <span class="text-muted fw-normal">(optional)</span>
+                  </label>
+                  <input type="tel" class="form-control" id="o-phone"
+                         name="phone" placeholder="07X XXX XXXX"
+                         value="{{ request.form.get('phone','') if role == 'owner' else '' }}"
+                         autocomplete="tel">
+                </div>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label" for="o-email">
+                  <i class="fa fa-envelope me-1 text-accent"></i>Business email <span class="text-danger">*</span>
+                </label>
+                <input type="email" class="form-control" id="o-email"
+                       name="email" placeholder="owner@yourbusiness.com"
+                       value="{{ request.form.get('email','') if role == 'owner' else '' }}"
+                       required autocomplete="email">
+              </div>
+
+              <div class="row g-3 mb-3">
+                <div class="col-12 col-md-6">
+                  <label class="form-label" for="o-pw">
+                    <i class="fa fa-lock me-1 text-accent"></i>Password <span class="text-danger">*</span>
+                  </label>
+                  <div class="input-group">
+                    <input type="password" class="form-control" id="o-pw"
+                           name="password" placeholder="Min. 6 characters"
+                           required autocomplete="new-password"
+                           oninput="checkStrength(this.value, 'o-strength')">
+                    <button class="btn btn-outline-secondary btn-sm px-3"
+                            type="button" onclick="togglePwd('o-pw', this)" tabindex="-1">
+                      <i class="fa fa-eye"></i>
+                    </button>
+                  </div>
+                  <div id="o-strength" class="strength-bar mt-2" style="display:none;">
+                    <div class="strength-fill"></div>
+                    <span class="strength-label"></span>
+                  </div>
+                </div>
+                <div class="col-12 col-md-6">
+                  <label class="form-label" for="o-pw2">
+                    <i class="fa fa-lock me-1 text-accent"></i>Confirm password <span class="text-danger">*</span>
+                  </label>
+                  <div class="input-group">
+                    <input type="password" class="form-control" id="o-pw2"
+                           name="confirm_password" placeholder="Repeat password"
+                           required autocomplete="new-password">
+                    <button class="btn btn-outline-secondary btn-sm px-3"
+                            type="button" onclick="togglePwd('o-pw2', this)" tabindex="-1">
+                      <i class="fa fa-eye"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Owner benefit note -->
+              <div class="rounded-3 p-3 mb-3"
+                   style="background:rgba(245,166,35,0.08);border:1px dashed rgba(245,166,35,0.4);">
+                <p class="small mb-0 text-muted">
+                  <i class="fa fa-circle-info me-1 text-accent"></i>
+                  After signing up you can add your business via the
+                  <strong>Add Business</strong> button — it takes under 2 minutes.
+                </p>
+              </div>
+
+              <div class="d-grid mt-2">
+                <button type="submit"
+                        class="btn fw-semibold py-2"
+                        style="background:var(--bislk-primary);color:#fff;">
+                  <i class="fa fa-store me-2"></i>Create Owner Account
+                </button>
+              </div>
+            </form>
+          </div>
+
+
+          <!-- Divider + login link -->
+          <hr class="section-divider mt-4">
+          <p class="text-center text-muted small mb-0">
+            Already have an account?
+            <a href="{{ url_for('login') }}" class="text-accent fw-semibold text-decoration-none">
+              Sign in here
+            </a>
+          </p>
+
+        </div><!-- /form-card -->
+
+      </div>
+    </div>
+  </div>
+</section>
+
+{% endblock %}
+
+
+{% block extra_scripts %}
+<script>
+  /* ── Tab switcher ─────────────────────────── */
+  function switchTab(role) {
+    const isOwner = role === 'owner';
+    document.getElementById('form-user').classList.toggle('d-none', isOwner);
+    document.getElementById('form-owner').classList.toggle('d-none', !isOwner);
+    document.getElementById('tab-user').classList.toggle('active', !isOwner);
+    document.getElementById('tab-owner').classList.toggle('active', isOwner);
+  }
+
+  /* ── Password visibility toggle ──────────── */
+  function togglePwd(inputId, btn) {
+    const input = document.getElementById(inputId);
+    const isText = input.type === 'text';
+    input.type = isText ? 'password' : 'text';
+    btn.querySelector('i').className = isText ? 'fa fa-eye' : 'fa fa-eye-slash';
+  }
+
+  /* ── Geolocation for signup form ───────────── */
+  function detectSignupLocation() {
+    if (!navigator.geolocation) {
+      alert('Geolocation is not supported by your browser.');
+      return;
+    }
+    const btn = document.querySelector('[onclick="detectSignupLocation()"]');
+    if (btn) {
+      btn.innerHTML = '<i class="fa fa-spinner fa-spin me-1"></i>Locating…';
+      btn.disabled = true;
+    }
+    navigator.geolocation.getCurrentPosition(
+      function(pos) {
+        document.getElementById('u-lat').value = pos.coords.latitude.toFixed(7);
+        document.getElementById('u-lon').value = pos.coords.longitude.toFixed(7);
+        if (btn) {
+          btn.innerHTML = '<i class="fa fa-circle-check me-1 text-accent"></i>Location detected';
+          btn.disabled = false;
+        }
+      },
+      function() {
+        if (btn) {
+          btn.innerHTML = '<i class="fa fa-crosshairs me-1 text-accent"></i>Detect my location automatically';
+          btn.disabled = false;
+        }
+        alert('Could not detect location. Please enter coordinates manually.');
+      }
+    );
+  }
+
+  /* ── Password strength indicator ─────────── */
+  function checkStrength(val, barId) {
+    const bar = document.getElementById(barId);
+    if (!val) { bar.style.display = 'none'; return; }
+    bar.style.display = 'flex';
+
+    let score = 0;
+    if (val.length >= 6)  score++;
+    if (val.length >= 10) score++;
+    if (/[A-Z]/.test(val)) score++;
+    if (/[0-9]/.test(val)) score++;
+    if (/[^A-Za-z0-9]/.test(val)) score++;
+
+    const fill  = bar.querySelector('.strength-fill');
+    const label = bar.querySelector('.strength-label');
+    const levels = [
+      { pct: '20%', color: '#e74c3c', text: 'Very weak'  },
+      { pct: '40%', color: '#e67e22', text: 'Weak'       },
+      { pct: '60%', color: '#f5a623', text: 'Fair'       },
+      { pct: '80%', color: '#2ecc71', text: 'Strong'     },
+      { pct:'100%', color: '#27ae60', text: 'Very strong'},
+    ];
+    const lvl = levels[Math.min(score, 4)];
+    fill.style.width = lvl.pct;
+    fill.style.background = lvl.color;
+    label.textContent = lvl.text;
+    label.style.color = lvl.color;
+  }
+</script>
+{% endblock %}

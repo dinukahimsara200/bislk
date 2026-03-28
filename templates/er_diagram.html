@@ -1,0 +1,976 @@
+{% extends "base.html" %}
+{% block title %}ER Diagram — BisLK Database Schema{% endblock %}
+
+{# ═══════════════════════════════════════════════════════════
+   EXTRA HEAD — all ER page styles scoped here.
+   style.css is NOT modified.
+════════════════════════════════════════════════════════════ #}
+{% block extra_head %}
+<style>
+  /* ── Page wrapper ───────────────────────────── */
+  .er-wrapper {
+    background: var(--bislk-surface);
+    padding: 40px 0 60px;
+  }
+
+  /* ── Diagram scroll container ───────────────── */
+  .er-scroll-box {
+    overflow-x: auto;
+    overflow-y: visible;
+    border-radius: var(--bislk-radius);
+    box-shadow: var(--bislk-shadow);
+    background: #f7fafd;
+    border: 1px solid #dce8f0;
+    scrollbar-width: thin;
+    scrollbar-color: #afc6dc #f7fafd;
+  }
+  .er-scroll-box::-webkit-scrollbar { height: 6px; }
+  .er-scroll-box::-webkit-scrollbar-track { background: #f7fafd; }
+  .er-scroll-box::-webkit-scrollbar-thumb {
+    background: #afc6dc; border-radius: 3px;
+  }
+
+  /* ── Legend ─────────────────────────────────── */
+  .er-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px 32px;
+    background: #fff;
+    border: 1px solid #dce8f0;
+    border-radius: 24px;
+    padding: 10px 24px;
+    box-shadow: 0 1px 8px rgba(0,0,0,0.08);
+    font-size: 0.78rem;
+    color: #3d5266;
+    margin-bottom: 24px;
+  }
+  .er-legend-item { display: flex; align-items: center; gap: 10px; }
+
+  /* ── Hint ────────────────────────────────────── */
+  .er-hint {
+    font-size: 0.8rem;
+    color: var(--bislk-muted);
+    text-align: center;
+    margin-top: 12px;
+  }
+  .er-hint i { color: var(--bislk-accent); }
+
+  /* ══════════════════════════════════════════════
+     ENTITY NOTE BOX
+     ─────────────────────────────────────────────
+     • position: fixed — viewport-relative, never
+       in the document flow so it cannot push content
+     • Placed once on mouseenter via JS anchor math;
+       NO mousemove tracking whatsoever
+     • Light, secondary palette so the diagram stays
+       the visual focus
+  ══════════════════════════════════════════════ */
+  #er-note {
+    position: fixed;
+    z-index: 998;
+    pointer-events: none;      /* never blocks mouse on diagram */
+    width: 210px;
+
+    /* Light card — deliberately less dominant than the entity */
+    background: rgba(255, 255, 255, 0.97);
+    border: 1px solid #ccdae8;
+    border-left: 3px solid var(--bislk-accent);
+    border-radius: 9px;
+    padding: 10px 13px 11px;
+    box-shadow: 0 3px 18px rgba(18, 40, 72, 0.10),
+                0 1px  4px rgba(18, 40, 72, 0.06);
+
+    font-size: 0.76rem;
+    line-height: 1.48;
+    color: var(--bislk-text);
+
+    /* Fade only — position is set before the fade starts */
+    opacity: 0;
+    transition: opacity 0.17s ease;
+
+    /* Hard height cap so note never grows into entity territory */
+    max-height: 112px;
+    overflow: hidden;
+  }
+  #er-note.visible { opacity: 0.96; }
+
+  .ern-title {
+    font-family: 'Consolas', monospace;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    color: var(--bislk-accent);
+    margin-bottom: 4px;
+    text-transform: uppercase;
+  }
+  .ern-desc {
+    color: #3a4f62;
+    font-size: 0.76rem;
+    margin-bottom: 5px;
+    line-height: 1.45;
+  }
+  .ern-rels {
+    font-size: 0.68rem;
+    color: #7a90a4;
+    border-top: 1px solid #eaf1f7;
+    padding-top: 5px;
+    line-height: 1.4;
+  }
+  .ern-rels i {
+    color: var(--bislk-accent);
+    margin-right: 3px;
+    font-size: 0.65rem;
+  }
+
+  /* ══════════════════════════════════════════════
+     RELATIONAL SCHEMA SECTION — Focused Light
+  ══════════════════════════════════════════════ */
+  .er-schema-section { 
+    margin-top: 52px; 
+  }
+
+  .er-schema-block {
+    background: #f5f9fd;
+    border: 1px solid #c8dce8;
+    border-radius: var(--bislk-radius);
+    box-shadow: 0 2px 16px rgba(18, 40, 72, 0.08),
+                inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    padding: 36px 40px;
+    position: relative;
+  }
+
+  /* Top accent line for visual focus */
+  .er-schema-block::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--bislk-accent);
+    opacity: 0.9;
+    border-radius: var(--bislk-radius) var(--bislk-radius) 0 0;
+  }
+
+  .er-schema-title {
+    font-size: 1.1rem;
+    font-weight: 800;
+    border-left: none;
+    padding-left: 0;
+    margin-bottom: 28px;
+    color: #0c2438;
+    letter-spacing: -0.2px;
+  }
+
+  .er-schema-row {
+    font-family: 'Consolas', 'SF Mono', 'Courier New', monospace;
+    font-size: 0.92rem;
+    line-height: 1.7;
+    color: #1f3a52;
+    padding: 13px 18px;
+    border-radius: 6px;
+    margin-bottom: 6px;
+    transition: all 0.15s ease;
+    word-break: break-word;
+    background: rgba(255, 255, 255, 0.7);
+    border-left: 3px solid transparent;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+  }
+
+  .er-schema-row:last-of-type { 
+    margin-bottom: 0; 
+  }
+
+  .er-schema-row:hover { 
+    background: #ffffff;
+    border-left-color: var(--bislk-accent);
+    transform: translateX(3px);
+    box-shadow: 0 4px 12px rgba(18, 40, 72, 0.1);
+    color: #0c2438;
+  }
+
+  .er-schema-tbl { 
+    font-weight: 700; 
+    color: #094078;
+    margin-right: 6px;
+    font-size: 0.95em;
+    letter-spacing: -0.2px;
+  }
+
+  .er-schema-attrs { 
+    color: #4a6378;
+  }
+
+  .er-schema-row u {
+    text-decoration-color: #094078;
+    text-underline-offset: 3px;
+    text-decoration-thickness: 2px;
+    color: #094078;
+    font-weight: 700;
+  }
+
+  .er-schema-note {
+    font-size: 0.8rem;
+    color: #556e85;
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid #bcd3e3;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 28px;
+    align-items: center;
+    font-weight: 500;
+  }
+
+  .er-schema-note-item { 
+    display: flex; 
+    align-items: center; 
+    gap: 8px; 
+  }
+
+  .er-schema-note u {
+    font-family: 'Consolas', monospace;
+    font-size: 0.8rem;
+    color: #094078;
+    text-decoration-color: #094078;
+    text-underline-offset: 2px;
+    text-decoration-thickness: 2px;
+    font-weight: 700;
+  }
+
+  .er-schema-note .fk-sample {
+    font-family: 'Consolas', monospace;
+    font-size: 0.8rem;
+    color: #5a728a;
+    border-bottom: 1.5px dashed #7a9ab0;
+    padding-bottom: 1px;
+  }
+</style>
+{% endblock %}
+
+
+{% block content %}
+
+{# ── Page banner ──────────────────────────────────────────── #}
+<div class="page-banner">
+  <div class="container">
+    <h1><i class="fa fa-diagram-project me-2 text-warning"></i>ER Diagram</h1>
+    <p class="mb-0">
+      Entity-Relationship schema for the BisLK database — hover any entity for a note.
+    </p>
+  </div>
+</div>
+
+
+<div class="er-wrapper">
+  <div class="container-fluid px-4 px-md-5">
+
+    {# ── Legend ──────────────────────────────── #}
+    <div class="d-flex justify-content-center">
+      <div class="er-legend">
+
+        <div class="er-legend-item">
+          <svg width="38" height="16" viewBox="0 0 38 16">
+            <text x="0" y="11" font-family="Consolas,monospace" font-size="11" fill="#1c2d3e">attr</text>
+            <line x1="0" y1="13" x2="26" y2="13" stroke="#0d3d7a" stroke-width="1.5"/>
+          </svg>
+          <span>Primary Key — solid underline</span>
+        </div>
+
+        <div class="er-legend-item">
+          <svg width="38" height="16" viewBox="0 0 38 16">
+            <text x="0" y="11" font-family="Consolas,monospace" font-size="11" fill="#1c2d3e">attr</text>
+            <line x1="0" y1="13" x2="26" y2="13" stroke="#6a7e92" stroke-width="1.5" stroke-dasharray="3,2"/>
+          </svg>
+          <span>Foreign Key — dashed underline</span>
+        </div>
+
+        <div class="er-legend-item">
+          <svg width="64" height="16" viewBox="0 0 64 16">
+            <line x1="0" y1="3" x2="0" y2="13" stroke="#4a7aaa" stroke-width="1.5"/>
+            <line x1="5" y1="3" x2="5" y2="13" stroke="#4a7aaa" stroke-width="1.5"/>
+            <line x1="5" y1="8" x2="59" y2="8" stroke="#4a7aaa" stroke-width="1.5"/>
+            <circle cx="52" cy="8" r="4" stroke="#4a7aaa" stroke-width="1.5" fill="white"/>
+            <line x1="64" y1="2" x2="57" y2="8" stroke="#4a7aaa" stroke-width="1.5" stroke-linecap="round"/>
+            <line x1="64" y1="8" x2="57" y2="8" stroke="#4a7aaa" stroke-width="1.5" stroke-linecap="round"/>
+            <line x1="64" y1="14" x2="57" y2="8" stroke="#4a7aaa" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+          <span>One-to-Many (crow's foot)</span>
+        </div>
+
+        <div class="er-legend-item">
+          <svg width="56" height="16" viewBox="0 0 56 16">
+            <line x1="0" y1="3" x2="0" y2="13" stroke="#4a7aaa" stroke-width="1.5"/>
+            <line x1="5" y1="3" x2="5" y2="13" stroke="#4a7aaa" stroke-width="1.5"/>
+            <line x1="5" y1="8" x2="51" y2="8" stroke="#4a7aaa" stroke-width="1.5"/>
+            <circle cx="44" cy="8" r="4" stroke="#4a7aaa" stroke-width="1.5" fill="white"/>
+            <line x1="56" y1="3" x2="56" y2="13" stroke="#4a7aaa" stroke-width="1.5"/>
+          </svg>
+          <span>One-to-One (optional)</span>
+        </div>
+
+      </div>
+    </div>
+
+    {# ── Diagram ──────────────────────────────── #}
+    <div class="er-scroll-box">
+      <svg id="diagram" xmlns="http://www.w3.org/2000/svg"
+           width="1100" height="1300" viewBox="0 0 1100 1300">
+        <defs>
+          <filter id="eshadow" x="-8%" y="-8%" width="120%" height="120%">
+            <feDropShadow dx="2" dy="3" stdDeviation="3.5" flood-color="rgba(18,40,72,0.13)"/>
+          </filter>
+        </defs>
+      </svg>
+    </div>
+
+    <p class="er-hint">
+      <i class="fa fa-hand-pointer"></i>
+      Hover any entity to see a note — it appears just outside the entity boundaries.
+    </p>
+
+    {# ══════════════════════════════════════════════
+       RELATIONAL SCHEMA
+    ══════════════════════════════════════════════ #}
+    <div class="er-schema-section">
+
+      <h2 class="section-title">
+        <span class="title-bar"></span>Relational Schema
+      </h2>
+
+      <div class="er-schema-block">
+
+        <div class="er-schema-title">
+          <i class="fa fa-table me-2 text-accent"></i>BisLK — Relational Schema
+        </div>
+
+        <div class="er-schema-row">
+          <span class="er-schema-tbl">users</span>
+          <span class="er-schema-attrs">(<u>user_id</u>, full_name, email, password_hash, phone, city, latitude, longitude, joined_at)</span>
+        </div>
+
+        <div class="er-schema-row">
+          <span class="er-schema-tbl">owners</span>
+          <span class="er-schema-attrs">(<u>owner_id</u>, full_name, email, password_hash, phone, joined_at)</span>
+        </div>
+
+        <div class="er-schema-row">
+          <span class="er-schema-tbl">categories</span>
+          <span class="er-schema-attrs">(<u>category_id</u>, name, slug, description, icon)</span>
+        </div>
+
+        <div class="er-schema-row">
+          <span class="er-schema-tbl">businesses</span>
+          <span class="er-schema-attrs">(<u>business_id</u>, name, address, city, latitude, longitude, phone, email, website, category_id, owner_id, is_verified, created_at)</span>
+        </div>
+
+        <div class="er-schema-row">
+          <span class="er-schema-tbl">business_images</span>
+          <span class="er-schema-attrs">(<u>image_id</u>, business_id, image_url, caption, is_primary)</span>
+        </div>
+
+        <div class="er-schema-row">
+          <span class="er-schema-tbl">reviews</span>
+          <span class="er-schema-attrs">(<u>review_id</u>, user_id, business_id, rating, title, body, created_at)</span>
+        </div>
+
+        <div class="er-schema-row">
+          <span class="er-schema-tbl">restaurants</span>
+          <span class="er-schema-attrs">(<u>business_id</u>, cuisine_type, price_range, has_delivery, seating_capacity)</span>
+        </div>
+
+        <div class="er-schema-row">
+          <span class="er-schema-tbl">hotels</span>
+          <span class="er-schema-attrs">(<u>business_id</u>, star_rating, total_rooms, has_pool, check_in_time, check_out_time)</span>
+        </div>
+
+        <div class="er-schema-row">
+          <span class="er-schema-tbl">salons</span>
+          <span class="er-schema-attrs">(<u>business_id</u>, services, gender_served, by_appointment)</span>
+        </div>
+
+        <div class="er-schema-note">
+          <div class="er-schema-note-item">
+            <u>attr</u><span>= Primary Key</span>
+          </div>
+          <div class="er-schema-note-item">
+            <span class="fk-sample">attr</span><span>= Foreign Key (dashed underline in diagram)</span>
+          </div>
+        </div>
+
+      </div>{# /er-schema-block #}
+    </div>{# /er-schema-section #}
+
+  </div>{# /container-fluid #}
+</div>{# /er-wrapper #}
+
+
+{# ── Entity note box — lives outside the SVG, positioned by JS ── #}
+<div id="er-note" role="tooltip" aria-hidden="true">
+  <div class="ern-title" id="ern-title"></div>
+  <div class="ern-desc"  id="ern-desc"></div>
+  <div class="ern-rels">
+    <i class="fa fa-link"></i><span id="ern-rels"></span>
+  </div>
+</div>
+
+{% endblock %}
+
+
+{% block extra_scripts %}
+<script>
+'use strict';
+
+/* ══════════════════════════════════════════════════════════
+   ① DIAGRAM RENDERER
+   Identical to the original — zero changes to entity data,
+   relationship definitions, drawing logic, or colours.
+══════════════════════════════════════════════════════════ */
+
+const NS  = 'http://www.w3.org/2000/svg';
+const BW  = 220;
+const RH  = 26;
+const HH  = 36;
+const MF  = 'Consolas, "Courier New", monospace';
+
+const C = {
+  hdr:    '#1e3d5c',
+  hdrTxt: '#e8f2fb',
+  rowA:   '#ffffff',
+  rowB:   '#eff5fb',
+  border: '#afc6dc',
+  txt:    '#1a2b3a',
+  pk:     '#0b3b78',
+  fk:     '#607284',
+  line:   '#4a7aaa',
+  lbl:    '#4f6575',
+};
+
+const ENT = {
+  users: { x:30, y:60, attrs:[
+    {n:'user_id',       pk:true},
+    {n:'full_name'},
+    {n:'email'},
+    {n:'password_hash'},
+    {n:'phone'},
+    {n:'city'},
+    {n:'latitude'},
+    {n:'longitude'},
+    {n:'joined_at'},
+  ]},
+  owners: { x:820, y:300, attrs:[
+    {n:'owner_id',       pk:true},
+    {n:'full_name'},
+    {n:'email'},
+    {n:'password_hash'},
+    {n:'phone'},
+    {n:'joined_at'},
+  ]},
+  categories: { x:820, y:60, attrs:[
+    {n:'category_id',   pk:true},
+    {n:'name'},
+    {n:'slug'},
+    {n:'description'},
+    {n:'icon'},
+  ]},
+  businesses: { x:420, y:280, attrs:[
+    {n:'business_id',   pk:true},
+    {n:'name'},
+    {n:'address'},
+    {n:'city'},
+    {n:'latitude'},
+    {n:'longitude'},
+    {n:'phone'},
+    {n:'email'},
+    {n:'website'},
+    {n:'category_id',   fk:true},
+    {n:'owner_id',      fk:true},
+    {n:'is_verified'},
+    {n:'created_at'},
+  ]},
+  business_images: { x:30, y:800, attrs:[
+    {n:'image_id',      pk:true},
+    {n:'business_id',   fk:true},
+    {n:'image_url'},
+    {n:'caption'},
+    {n:'is_primary'},
+  ]},
+  reviews: { x:820, y:760, attrs:[
+    {n:'review_id',     pk:true},
+    {n:'user_id',       fk:true},
+    {n:'business_id',   fk:true},
+    {n:'rating'},
+    {n:'title'},
+    {n:'body'},
+    {n:'created_at'},
+  ]},
+  restaurants: { x:30, y:1050, attrs:[
+    {n:'business_id',   pk:true, fk:true},
+    {n:'cuisine_type'},
+    {n:'price_range'},
+    {n:'has_delivery'},
+    {n:'seating_capacity'},
+  ]},
+  hotels: { x:420, y:1050, attrs:[
+    {n:'business_id',   pk:true, fk:true},
+    {n:'star_rating'},
+    {n:'total_rooms'},
+    {n:'has_pool'},
+    {n:'check_in_time'},
+    {n:'check_out_time'},
+  ]},
+  salons: { x:820, y:1050, attrs:[
+    {n:'business_id',   pk:true, fk:true},
+    {n:'services'},
+    {n:'gender_served'},
+    {n:'by_appointment'},
+  ]},
+};
+
+function bh(name) { return HH + ENT[name].attrs.length * RH; }
+
+const RELS = [
+  { fp:[820,430], fd:[-1,0], fc:'one',
+    tp:[640,430], td:[1,0],  tc:'many_opt',
+    wp:[],
+    lbl:'owns',        lx:665, ly:422 },
+  { fp:[820,143], fd:[-1,0], fc:'one',
+    tp:[640,400], td:[1,0],  tc:'many_opt',
+    wp:[[724,143],[724,400]],
+    lbl:'categorises', lx:730, ly:262 },
+  { fp:[420,555], fd:[-1,0], fc:'one',
+    tp:[250,883], td:[1,0],  tc:'many_opt',
+    wp:[[336,555],[336,883]],
+    lbl:'has',         lx:342, ly:720 },
+  { fp:[640,555], fd:[1,0],  fc:'one',
+    tp:[820,869], td:[-1,0], tc:'many_opt',
+    wp:[[724,555],[724,869]],
+    lbl:'receives',    lx:730, ly:714 },
+  { fp:[140,330], fd:[0,1],  fc:'one',
+    tp:[930,760], td:[0,-1], tc:'many_opt',
+    wp:[[140,710],[930,710]],
+    lbl:'writes',      lx:520, ly:726 },
+  { fp:[492,654], fd:[0,1],  fc:'one',
+    tp:[140,1050],td:[0,-1], tc:'one_opt',
+    wp:[[492,984],[140,984]],
+    lbl:'extends',     lx:306, ly:975 },
+  { fp:[530,654], fd:[0,1],  fc:'one',
+    tp:[530,1050],td:[0,-1], tc:'one_opt',
+    wp:[],
+    lbl:'extends',     lx:538, ly:870 },
+  { fp:[568,654], fd:[0,1],  fc:'one',
+    tp:[930,1050],td:[0,-1], tc:'one_opt',
+    wp:[[568,984],[930,984]],
+    lbl:'extends',     lx:752, ly:975 },
+];
+
+function mk(tag, a={}) {
+  const el = document.createElementNS(NS, tag);
+  for (const [k,v] of Object.entries(a)) el.setAttribute(k, v);
+  return el;
+}
+function ln(x1,y1,x2,y2,a={}) { return mk('line',{x1,y1,x2,y2,...a}); }
+
+function drawEntity(parent, name) {
+  const ent = ENT[name];
+  const h   = bh(name);
+  const {x, y} = ent;
+  const g = mk('g', {'class': 'ent-'+name});
+
+  g.appendChild(mk('rect',{
+    x:x+3, y:y+4, width:BW, height:h, rx:8,
+    fill:'rgba(18,40,72,0.09)',
+  }));
+  g.appendChild(mk('rect',{
+    x, y, width:BW, height:h, rx:8,
+    fill:C.rowA, stroke:C.border, 'stroke-width':1.5,
+  }));
+  g.appendChild(mk('rect',{
+    x, y, width:BW, height:HH, rx:8,
+    fill:C.hdr,
+  }));
+  g.appendChild(mk('rect',{
+    x, y:y+HH-8, width:BW, height:8,
+    fill:C.hdr,
+  }));
+
+  const ht = mk('text',{
+    x: x+BW/2, y: y+HH/2+5,
+    'text-anchor':'middle',
+    fill:C.hdrTxt,
+    'font-family':MF,
+    'font-size':13,
+    'font-weight':'bold',
+    'letter-spacing':1,
+  });
+  ht.textContent = name.toUpperCase();
+  g.appendChild(ht);
+
+  g.appendChild(ln(x, y+HH, x+BW, y+HH, {stroke:C.border,'stroke-width':1}));
+
+  ent.attrs.forEach((attr, i) => {
+    const ry   = y + HH + i * RH;
+    const last = i === ent.attrs.length - 1;
+
+    if (i % 2 === 1) {
+      g.appendChild(mk('rect',{
+        x:x+1.5, y:ry, width:BW-3, height:last ? RH-2 : RH,
+        fill:C.rowB,
+      }));
+    }
+
+    const tx = x + 14;
+    const ty = ry + RH/2 + 4.5;
+
+    const txt = mk('text',{
+      x:tx, y:ty,
+      fill:C.txt,
+      'font-family':MF,
+      'font-size':12,
+    });
+    txt.textContent = attr.n;
+    g.appendChild(txt);
+
+    const tw = attr.n.length * 7.2;
+
+    if (attr.pk) {
+      g.appendChild(ln(tx, ty+2, tx+tw, ty+2, {
+        stroke:C.pk, 'stroke-width':1.5,
+      }));
+    }
+    if (attr.fk) {
+      const uy = attr.pk ? ty+5 : ty+2;
+      g.appendChild(ln(tx, uy, tx+tw, uy, {
+        stroke:C.fk, 'stroke-width':1.5, 'stroke-dasharray':'3,2',
+      }));
+    }
+
+    if (!last) {
+      g.appendChild(ln(x+1.5, ry+RH, x+BW-1.5, ry+RH, {
+        stroke:C.border, 'stroke-width':0.5, opacity:0.55,
+      }));
+    }
+  });
+
+  g.appendChild(mk('rect',{
+    x, y, width:BW, height:h, rx:8,
+    fill:'none', stroke:C.border, 'stroke-width':1.5,
+  }));
+
+  parent.appendChild(g);
+}
+
+function drawSymbol(parent, ep, dir, card) {
+  const [px, py] = ep;
+  const angle = Math.atan2(dir[1], dir[0]) * 180 / Math.PI;
+  const g = mk('g',{
+    transform:`translate(${px},${py}) rotate(${angle})`,
+    stroke:C.line, fill:'none',
+    'stroke-width':1.5, 'stroke-linecap':'round',
+  });
+  const ts = 9;
+  switch(card) {
+    case 'one':
+      g.appendChild(ln(6,-ts, 6, ts));
+      g.appendChild(ln(13,-ts,13, ts));
+      break;
+    case 'one_opt':
+      g.appendChild(ln(6,-ts, 6, ts));
+      g.appendChild(mk('circle',{cx:20, cy:0, r:5, fill:'#fff'}));
+      break;
+    case 'many_opt':
+      g.appendChild(ln(4,-10, 18, 0));
+      g.appendChild(ln(4,  0, 18, 0));
+      g.appendChild(ln(4, 10, 18, 0));
+      g.appendChild(mk('circle',{cx:26, cy:0, r:5, fill:'#fff'}));
+      break;
+  }
+  parent.appendChild(g);
+}
+
+function drawRel(parent, rel) {
+  const {fp,fd,fc, tp,td,tc, wp, lbl, lx, ly} = rel;
+  const pts = [fp, ...wp, tp];
+  const d = pts.map((p,i) => (i===0?'M':'L')+` ${p[0]} ${p[1]}`).join(' ');
+  parent.appendChild(mk('path',{
+    d, stroke:C.line, 'stroke-width':1.5,
+    fill:'none', 'stroke-linejoin':'round',
+    opacity:'0.82',
+  }));
+  drawSymbol(parent, fp, fd, fc);
+  drawSymbol(parent, tp, td, tc);
+  const lt = mk('text',{
+    x:lx, y:ly,
+    fill:C.lbl,
+    'font-family':'"Segoe UI", sans-serif',
+    'font-size':11,
+    'font-style':'italic',
+    'text-anchor':'start',
+  });
+  lt.textContent = lbl;
+  parent.appendChild(lt);
+}
+
+/* ── Render ──────────────────────────────────── */
+const svg = document.getElementById('diagram');
+svg.appendChild(mk('rect',{x:0,y:0,width:1100,height:1300,fill:'#f7fafd'}));
+
+const relLayer = mk('g', {id:'rels'});
+RELS.forEach(r => drawRel(relLayer, r));
+svg.appendChild(relLayer);
+
+const entLayer = mk('g', {id:'ents'});
+Object.keys(ENT).forEach(n => drawEntity(entLayer, n));
+svg.appendChild(entLayer);
+
+
+/* ══════════════════════════════════════════════════════════
+   ② INTERACTIVITY LAYER
+   ─────────────────────────────────────────────────────────
+   Note positioning — DESIGN RATIONALE:
+
+   Each entity has a pre-computed SVG anchor point chosen
+   to sit on the entity's most open edge (verified against
+   all entity boxes and relationship paths in the diagram).
+   On mouseenter the anchor is converted once from SVG space
+   to viewport pixels. The note is positioned there and never
+   moves again — no mousemove handler anywhere.
+
+   SVG anchor points (SVG px, 0 0 1100 1300 viewBox):
+   ┌─────────────────┬────────────┬────────────────────────┐
+   │ Entity          │ Anchor     │ Side & rationale        │
+   ├─────────────────┼────────────┼────────────────────────┤
+   │ users           │ 250,  60   │ right-top — note ends   │
+   │                 │            │ at y≈148, exit at y=156 │
+   │ categories      │ 820, 150   │ left-top — starts below │
+   │                 │            │ exit line at y=143      │
+   │ businesses      │ 530, 280   │ centered above — no     │
+   │                 │            │ entities above x420-640 │
+   │ business_images │ 250, 892   │ right-top — starts below│
+   │                 │            │ enter line at y=883     │
+   │ reviews         │ 820, 760   │ left-top — note ends at │
+   │                 │            │ y≈848, receive at y=869 │
+   │ restaurants     │ 140,1216   │ centered below — no     │
+   │                 │            │ lines exit bottom       │
+   │ hotels          │ 530,1050   │ centered above — no     │
+   │                 │            │ entity in x420-640 above│
+   │ salons          │ 930,1190   │ centered below — no     │
+   │                 │            │ lines exit bottom       │
+   └─────────────────┴────────────┴────────────────────────┘
+══════════════════════════════════════════════════════════ */
+
+/* ── Note content ───────────────────────────── */
+const ENT_META = {
+  users: {
+    title: 'USERS',
+    desc:  'Stores customers who can write reviews. Includes city and location for nearby search.',
+    rels:  'Writes → Reviews',
+  },
+  owners: {
+    title: 'OWNERS',
+    desc:  'Stores business owners who can list and manage businesses on BisLK.',
+    rels:  'Owns → Businesses',
+  },
+  categories: {
+    title: 'CATEGORIES',
+    desc:  'Groups businesses into types like restaurants, hotels, and salons.',
+    rels:  'Groups → Businesses',
+  },
+  businesses: {
+    title: 'BUSINESSES',
+    desc:  'Main table with business details such as name, location, and contact.',
+    rels:  'Owned by Owners · Has Images · Gets Reviews · Extended by Subtypes',
+  },
+  business_images: {
+    title: 'BUSINESS IMAGES',
+    desc:  'Stores images of businesses. One image can be the main display.',
+    rels:  'Belongs to → Businesses',
+  },
+  reviews: {
+    title: 'REVIEWS',
+    desc:  'Stores user ratings and feedback about businesses.',
+    rels:  'By Users · About Businesses',
+  },
+  restaurants: {
+    title: 'RESTAURANTS',
+    desc:  'Extra details for restaurant businesses like cuisine and delivery.',
+    rels:  'Extension of Businesses (optional)',
+  },
+  hotels: {
+    title: 'HOTELS',
+    desc:  'Extra details for hotels such as rooms, rating, and facilities.',
+    rels:  'Extension of Businesses (optional)',
+  },
+  salons: {
+    title: 'SALONS',
+    desc:  'Extra details for salons like services and appointment options.',
+    rels:  'Extension of Businesses (optional)',
+  },
+};
+
+/* ── Note anchor: SVG coordinate + alignment ── */
+const NOTE_ANCHOR = {
+  //                   ax    ay    hAlign    vAlign
+  users:           { ax: 250, ay:   60, h:'left',   v:'top'    },
+  owners:          { ax: 820, ay:  300, h:'right',  v:'top'    },
+  categories:      { ax: 820, ay:  150, h:'right',  v:'top'    },
+  businesses:      { ax: 530, ay:  280, h:'center', v:'bottom' },
+  business_images: { ax: 250, ay:  892, h:'left',   v:'top'    },
+  reviews:         { ax: 820, ay:  760, h:'right',  v:'top'    },
+  restaurants:     { ax: 140, ay: 1216, h:'center', v:'top'    },
+  hotels:          { ax: 530, ay: 1050, h:'center', v:'bottom' },
+  salons:          { ax: 930, ay: 1190, h:'center', v:'top'    },
+};
+
+const NOTE_W   = 210;  /* matches CSS width */
+const NOTE_GAP = 12;   /* screen-px gap between entity edge and note */
+
+const note     = document.getElementById('er-note');
+const ernTitle = document.getElementById('ern-title');
+const ernDesc  = document.getElementById('ern-desc');
+const ernRels  = document.getElementById('ern-rels');
+
+/*
+  Convert an SVG-space coordinate to a viewport coordinate.
+  Uses getBoundingClientRect() at call time so scroll position
+  and container resize are always respected.
+*/
+function svgToViewport(svgX, svgY) {
+  const r  = svg.getBoundingClientRect();
+  const sx = r.width  / 1100;
+  const sy = r.height / 1300;
+  return { vx: r.left + svgX * sx, vy: r.top + svgY * sy };
+}
+
+/*
+  Compute and apply the note's fixed position.
+  Called once on mouseenter — NEVER on mousemove.
+  offsetHeight is accurate because content is already
+  set before this function runs.
+*/
+function placeNote(name) {
+  const cfg = NOTE_ANCHOR[name];
+  const { vx, vy } = svgToViewport(cfg.ax, cfg.ay);
+
+  const noteH = note.offsetHeight || 94;
+
+  let left, top;
+
+  /* Horizontal placement */
+  if      (cfg.h === 'left')   left = vx + NOTE_GAP;
+  else if (cfg.h === 'right')  left = vx - NOTE_W - NOTE_GAP;
+  else /* center */             left = vx - NOTE_W / 2;
+
+  /* Vertical placement */
+  if   (cfg.v === 'top')    top = vy + NOTE_GAP;
+  else /* bottom */          top = vy - noteH - NOTE_GAP;
+
+  /* Clamp to visible viewport so note never clips offscreen */
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  left = Math.max(8, Math.min(left, vw - NOTE_W  - 8));
+  top  = Math.max(8, Math.min(top,  vh - noteH   - 8));
+
+  note.style.left = left + 'px';
+  note.style.top  = top  + 'px';
+}
+
+/* ── Entity group refs ───────────────────────── */
+const entGroups = {};
+Object.keys(ENT).forEach(name => {
+  entGroups[name] = svg.querySelector('.ent-' + name);
+});
+
+/* ── Focus / unfocus ─────────────────────────── */
+function entCentre(name) {
+  const e = ENT[name];
+  return { cx: e.x + BW / 2, cy: e.y + bh(name) / 2 };
+}
+
+function focusEntity(name) {
+  const { cx, cy } = entCentre(name);
+  Object.keys(entGroups).forEach(n => {
+    const g = entGroups[n];
+    if (!g) return;
+    if (n === name) {
+      /* Hovered entity: stronger zoom + sharper shadow = clear focal point */
+      g.style.transition      = 'transform 0.22s ease, opacity 0.22s ease, filter 0.22s ease';
+      g.style.transformOrigin = `${cx}px ${cy}px`;
+      g.style.transform       = 'scale(1.055)';
+      g.style.opacity         = '1';
+      g.style.filter          = 'drop-shadow(0 8px 26px rgba(18,40,72,0.28))';
+    } else {
+      /* Others: fade back significantly so hovered entity dominates */
+      g.style.transition  = 'transform 0.22s ease, opacity 0.22s ease, filter 0.22s ease';
+      g.style.transform   = 'scale(1)';
+      g.style.opacity     = '0.22';
+      g.style.filter      = 'none';
+    }
+  });
+  /* Relationship lines: fade so entity is the clear focus */
+  const rl = document.getElementById('rels');
+  if (rl) { rl.style.transition = 'opacity 0.22s'; rl.style.opacity = '0.28'; }
+}
+
+function resetFocus() {
+  Object.keys(entGroups).forEach(n => {
+    const g = entGroups[n];
+    if (!g) return;
+    g.style.transform = 'scale(1)';
+    g.style.opacity   = '1';
+    g.style.filter    = 'none';
+  });
+  const rl = document.getElementById('rels');
+  if (rl) { rl.style.opacity = '1'; }
+}
+
+/* ── Show / hide note ────────────────────────── */
+let hideTimer = null;
+
+function showNote(name) {
+  clearTimeout(hideTimer);
+  const meta = ENT_META[name];
+  if (!meta) return;
+
+  /* 1. Write content first so offsetHeight is accurate in placeNote() */
+  ernTitle.textContent = meta.title;
+  ernDesc.textContent  = meta.desc;
+  ernRels.textContent  = meta.rels;
+  note.setAttribute('aria-hidden', 'false');
+
+  /* 2. Position (content is set; offsetHeight is now reliable) */
+  placeNote(name);
+
+  /* 3. Fade in */
+  note.classList.add('visible');
+}
+
+function hideNote() {
+  hideTimer = setTimeout(() => {
+    note.classList.remove('visible');
+    note.setAttribute('aria-hidden', 'true');
+  }, 60);
+}
+
+/* ── Attach listeners ────────────────────────── */
+Object.keys(entGroups).forEach(name => {
+  const g = entGroups[name];
+  if (!g) return;
+
+  g.style.cursor = 'pointer';
+
+  /* mouseenter: focus + show note (position computed once here) */
+  g.addEventListener('mouseenter', () => {
+    focusEntity(name);
+    showNote(name);
+  });
+
+  /* NO mousemove listener — note position is fully stable */
+
+  g.addEventListener('mouseleave', () => {
+    resetFocus();
+    hideNote();
+  });
+});
+</script>
+{% endblock %}

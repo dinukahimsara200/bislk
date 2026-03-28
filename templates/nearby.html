@@ -1,0 +1,249 @@
+{% extends "base.html" %}
+{% block title %}Nearby Businesses — BisLK{% endblock %}
+
+{% block content %}
+
+<!-- ═══════════════════════════════════════════
+     PAGE BANNER
+════════════════════════════════════════════ -->
+<section class="page-banner">
+  <div class="container">
+    <p class="text-warning fw-semibold small text-uppercase mb-1" style="letter-spacing:.08em;">
+      <i class="fa fa-crosshairs me-1"></i>Location Search
+    </p>
+    <h1>Businesses Near You</h1>
+    <p>
+      {% if searched %}
+        Showing businesses within <strong>{{ radius }} km</strong>
+        {% if lat and lon %}
+          of your selected location.
+        {% endif %}
+      {% else %}
+        Share your location to discover what's nearby.
+      {% endif %}
+    </p>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════
+     LOCATION FORM + RESULTS
+════════════════════════════════════════════ -->
+<section class="py-5">
+  <div class="container">
+    <div class="row g-4">
+
+      <!-- ── LEFT: Location input form ─────────── -->
+      <div class="col-12 col-lg-4">
+        <div class="filter-sidebar">
+
+          <p class="filter-title">
+            <i class="fa fa-map-pin me-1 text-accent"></i>Your Location
+          </p>
+
+          <!-- Saved-location hint for logged-in users -->
+          {% if current_user and user_city and not searched %}
+          <div class="rounded-3 p-3 mb-3"
+               style="background:rgba(245,166,35,0.08);border:1px dashed rgba(245,166,35,0.4);">
+            <p class="small mb-0 text-muted">
+              <i class="fa fa-circle-check me-1 text-accent"></i>
+              Using your saved location:
+              <strong class="text-accent">{{ user_city }}</strong>.
+              You can adjust below or
+              <a href="#" onclick="detectLocation()" class="text-accent text-decoration-none">
+                detect again
+              </a>.
+            </p>
+          </div>
+          {% endif %}
+
+          <form method="GET" action="{{ url_for('nearby') }}" id="nearby-form">
+
+            <!-- GPS detect button -->
+            <button type="button" class="btn btn-outline-secondary w-100 mb-3 btn-sm"
+                    onclick="detectLocation()">
+              <i class="fa fa-crosshairs me-1 text-accent"></i>Detect my location
+            </button>
+
+            <div class="mb-3">
+              <label class="form-label" for="inp-lat">Latitude</label>
+              <input type="number" step="any" class="form-control form-control-sm"
+                     id="inp-lat" name="lat"
+                     value="{{ lat if lat else '' }}"
+                     placeholder="e.g. 6.9271"
+                     required>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label" for="inp-lon">Longitude</label>
+              <input type="number" step="any" class="form-control form-control-sm"
+                     id="inp-lon" name="lon"
+                     value="{{ lon if lon else '' }}"
+                     placeholder="e.g. 79.8612"
+                     required>
+            </div>
+
+            <div class="mb-4">
+              <label class="form-label d-flex justify-content-between">
+                <span>Search radius</span>
+                <strong class="text-accent" id="radius-label">{{ radius | int }} km</strong>
+              </label>
+              <input type="range" class="form-range" id="inp-radius" name="radius"
+                     min="0.5" max="50" step="0.5"
+                     value="{{ radius }}"
+                     oninput="document.getElementById('radius-label').textContent = parseFloat(this.value).toFixed(1) + ' km'">
+              <div class="d-flex justify-content-between" style="font-size:0.72rem;color:#aaa;margin-top:2px;">
+                <span>0.5 km</span><span>25 km</span><span>50 km</span>
+              </div>
+            </div>
+
+            <div class="d-grid">
+              <button type="submit" class="btn btn-warning fw-semibold">
+                <i class="fa fa-search me-1"></i>Search Nearby
+              </button>
+            </div>
+
+          </form>
+
+          {% if not current_user %}
+          <hr class="section-divider">
+          <p class="small text-muted text-center mb-0">
+            <i class="fa fa-circle-info me-1"></i>
+            <a href="{{ url_for('signup') }}" class="text-accent text-decoration-none">Sign up</a>
+            to save your location and skip this step next time.
+          </p>
+          {% endif %}
+
+        </div><!-- /filter-sidebar -->
+      </div>
+
+
+      <!-- ── RIGHT: Results ─────────────────────── -->
+      <div class="col-12 col-lg-8">
+
+        {% if not searched %}
+        <!-- ── Landing state ─────────────── -->
+        <div class="text-center py-5 text-muted">
+          <i class="fa fa-map-location-dot fa-3x mb-3 text-accent" style="opacity:.6;"></i>
+          <h5 class="fw-semibold mb-2">Ready to explore?</h5>
+          <p class="mb-3">
+            Click <strong>Detect my location</strong> or enter coordinates,
+            then hit <strong>Search Nearby</strong>.
+          </p>
+          {% if not current_user %}
+          <a href="{{ url_for('signup') }}" class="btn btn-warning btn-sm fw-semibold px-4">
+            <i class="fa fa-user-plus me-1"></i>Sign up to save location
+          </a>
+          {% endif %}
+        </div>
+
+        {% elif result_count == 0 %}
+        <!-- ── No results ─────────────────── -->
+        <div class="text-center py-5 text-muted">
+          <i class="fa fa-store-slash fa-3x mb-3" style="opacity:.4;"></i>
+          <h5 class="fw-semibold">No businesses found within {{ radius }} km</h5>
+          <p class="mb-3">Try increasing your search radius using the slider.</p>
+        </div>
+
+        {% else %}
+        <!-- ── Results grid ───────────────── -->
+        <div class="d-flex align-items-center justify-content-between mb-3">
+          <h5 class="fw-bold mb-0">
+            <span class="text-accent">{{ result_count }}</span>
+            business{{ 'es' if result_count != 1 else '' }} found
+          </h5>
+          <span class="text-muted small">Sorted by distance</span>
+        </div>
+
+        <div class="row g-3">
+          {% for biz in results %}
+          <div class="col-12 col-sm-6">
+            <a href="{{ url_for('business_detail', business_id=biz.business_id) }}"
+               class="business-card d-flex" style="flex-direction:row;min-height:unset;">
+
+              <!-- Thumbnail -->
+              {% if biz.primary_image %}
+              <img src="{{ biz.primary_image }}"
+                   alt="{{ biz.name }}"
+                   onerror="this.src='/static/img/placeholder.jpg'"
+                   style="width:90px;min-width:90px;height:100%;object-fit:cover;border-radius:var(--bislk-radius) 0 0 var(--bislk-radius);">
+              {% else %}
+              <div class="placeholder-img"
+                   style="width:90px;min-width:90px;border-radius:var(--bislk-radius) 0 0 var(--bislk-radius);">
+                <i class="fa fa-image"></i>
+              </div>
+              {% endif %}
+
+              <!-- Info -->
+              <div class="card-body py-2 px-3">
+                <span class="badge-category mb-1 d-inline-block">{{ biz.category }}</span>
+                <div class="biz-name" style="font-size:.92rem;">{{ biz.name }}</div>
+                <div class="d-flex align-items-center gap-1 my-1">
+                  <span class="rating-badge" style="font-size:.75rem;padding:1px 6px;">
+                    {{ biz.avg_rating }}
+                  </span>
+                  <span class="star-rating" style="font-size:.75rem;">
+                    {% set full  = biz.avg_rating | int %}
+                    {% set empty = 5 - full %}
+                    {% for _ in range(full)  %}<i class="fa fa-star"></i>{% endfor %}
+                    {% for _ in range(empty) %}<i class="fa fa-star empty"></i>{% endfor %}
+                  </span>
+                </div>
+                <div class="biz-meta d-flex align-items-center gap-2 flex-wrap">
+                  <span>
+                    <i class="fa fa-location-dot me-1 text-accent"></i>{{ biz.city }}
+                  </span>
+                  <!-- Distance badge -->
+                  <span class="distance-badge">
+                    <i class="fa fa-route me-1"></i>{{ biz.distance_km }} km
+                  </span>
+                </div>
+              </div>
+
+            </a>
+          </div>
+          {% endfor %}
+        </div><!-- /row -->
+        {% endif %}
+
+      </div><!-- /col results -->
+    </div><!-- /row -->
+  </div>
+</section>
+
+{% endblock %}
+
+
+{% block extra_scripts %}
+<script>
+  /* ── Browser geolocation API ─────────────── */
+  function detectLocation() {
+    if (!navigator.geolocation) {
+      alert('Geolocation is not supported by your browser.');
+      return;
+    }
+    const btn = document.querySelector('[onclick="detectLocation()"]');
+    if (btn) {
+      btn.innerHTML = '<i class="fa fa-spinner fa-spin me-1"></i>Locating…';
+      btn.disabled = true;
+    }
+    navigator.geolocation.getCurrentPosition(
+      function(pos) {
+        document.getElementById('inp-lat').value = pos.coords.latitude.toFixed(7);
+        document.getElementById('inp-lon').value = pos.coords.longitude.toFixed(7);
+        if (btn) {
+          btn.innerHTML = '<i class="fa fa-circle-check me-1 text-accent"></i>Location detected';
+          btn.disabled = false;
+        }
+      },
+      function() {
+        if (btn) {
+          btn.innerHTML = '<i class="fa fa-crosshairs me-1 text-accent"></i>Detect my location';
+          btn.disabled = false;
+        }
+        alert('Could not get your location. Please enter coordinates manually.');
+      }
+    );
+  }
+</script>
+{% endblock %}

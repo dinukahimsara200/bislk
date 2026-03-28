@@ -1,0 +1,497 @@
+/* ── BisLK Custom Styles ─────────────────────── */
+
+/* Google Font — Inter */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+:root {
+  --bislk-primary:   #1a1a2e;  /* deep navy */
+  --bislk-accent:    #f5a623;  /* warm amber/gold */
+  --bislk-accent2:   #e74c3c;  /* coral red for stars */
+  --bislk-surface:   #f8f9fb;
+  --bislk-card-bg:   #ffffff;
+  --bislk-text:      #2c2c3e;
+  --bislk-muted:     #6c757d;
+  --bislk-radius:    12px;
+  --bislk-shadow:    0 2px 12px rgba(0,0,0,0.08);
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--bislk-surface);
+  color: var(--bislk-text);
+}
+
+/* ── Navbar ───────────────────────────────────── */
+.bislk-navbar {
+  background: var(--bislk-primary) !important;
+  padding: 0.6rem 0;
+}
+
+.bislk-navbar .nav-link {
+  color: rgba(255,255,255,0.82) !important;
+  font-size: 0.9rem;
+  font-weight: 500;
+  padding: 0.45rem 0.8rem !important;
+  border-radius: 6px;
+  transition: background 0.18s, color 0.18s;
+}
+.bislk-navbar .nav-link:hover {
+  color: #fff !important;
+  background: rgba(255,255,255,0.1);
+}
+
+.nav-search-form {
+  width: 340px;
+}
+.nav-search-input {
+  border-radius: 6px 0 0 6px !important;
+  border: none;
+  font-size: 0.88rem;
+  background: rgba(255,255,255,0.12);
+  color: #fff;
+}
+.nav-search-input::placeholder { color: rgba(255,255,255,0.5); }
+.nav-search-input:focus {
+  background: rgba(255,255,255,0.2);
+  color: #fff;
+  box-shadow: none;
+  border-color: transparent;
+}
+
+/* ── Hero section ─────────────────────────────── */
+.bislk-hero {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 60%, #0f3460 100%);
+  padding: 80px 0 60px;
+  position: relative;
+  overflow: hidden;
+}
+.bislk-hero::after {
+  content: '';
+  position: absolute;
+  bottom: -1px; left: 0; right: 0;
+  height: 40px;
+  background: var(--bislk-surface);
+  clip-path: ellipse(55% 100% at 50% 100%);
+}
+.bislk-hero .hero-title {
+  font-size: 2.6rem;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.2;
+}
+.bislk-hero .hero-sub {
+  color: rgba(255,255,255,0.7);
+  font-size: 1.05rem;
+}
+.hero-search-bar .form-control {
+  height: 52px;
+  border-radius: 10px 0 0 10px !important;
+  border: none;
+  font-size: 1rem;
+}
+.hero-search-bar .btn {
+  height: 52px;
+  border-radius: 0 10px 10px 0 !important;
+  padding: 0 28px;
+  font-weight: 600;
+}
+
+/* ── Section headings ─────────────────────────── */
+.section-title {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--bislk-text);
+  margin-bottom: 1.4rem;
+}
+.section-title .title-bar {
+  display: inline-block;
+  width: 4px;
+  height: 22px;
+  background: var(--bislk-accent);
+  border-radius: 2px;
+  margin-right: 10px;
+  vertical-align: middle;
+}
+
+/* ── Category cards ───────────────────────────── */
+.category-card {
+  background: var(--bislk-card-bg);
+  border: 1px solid #eee;
+  border-radius: var(--bislk-radius);
+  padding: 28px 16px 22px;
+  text-align: center;
+  text-decoration: none;
+  color: var(--bislk-text);
+  transition: transform 0.18s, box-shadow 0.18s, border-color 0.18s;
+  display: block;
+  box-shadow: var(--bislk-shadow);
+}
+.category-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  border-color: var(--bislk-accent);
+  color: var(--bislk-text);
+}
+.category-card .cat-icon {
+  font-size: 2rem;
+  color: var(--bislk-accent);
+  margin-bottom: 10px;
+}
+.category-card .cat-name {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+/* ── Business cards ───────────────────────────── */
+.business-card {
+  background: var(--bislk-card-bg);
+  border: 1px solid #eee;
+  border-radius: var(--bislk-radius);
+  overflow: hidden;
+  box-shadow: var(--bislk-shadow);
+  transition: transform 0.18s, box-shadow 0.18s;
+  text-decoration: none;
+  color: var(--bislk-text);
+  display: block;
+  height: 100%;
+}
+.business-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.13);
+  color: var(--bislk-text);
+}
+.business-card .card-img-top {
+  height: 180px;
+  object-fit: cover;
+  width: 100%;
+  background: #e9ecef;
+}
+.business-card .card-body {
+  padding: 14px 16px 16px;
+}
+.business-card .biz-name {
+  font-weight: 600;
+  font-size: 1rem;
+  margin-bottom: 4px;
+}
+.business-card .biz-meta {
+  font-size: 0.8rem;
+  color: var(--bislk-muted);
+}
+
+/* ── Star rating display ──────────────────────── */
+.star-rating { color: #f5a623; font-size: 0.88rem; }
+.star-rating .empty { color: #ddd; }
+.rating-badge {
+  background: var(--bislk-accent);
+  color: #fff;
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+/* ── Category badge ───────────────────────────── */
+.badge-category {
+  background: rgba(26,26,46,0.08);
+  color: var(--bislk-primary);
+  border-radius: 20px;
+  padding: 3px 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+/* ── Forms ────────────────────────────────────── */
+.form-card {
+  background: var(--bislk-card-bg);
+  border: 1px solid #e9ecef;
+  border-radius: var(--bislk-radius);
+  padding: 28px 32px;
+  box-shadow: var(--bislk-shadow);
+}
+.form-label { font-weight: 500; font-size: 0.9rem; }
+.form-control:focus, .form-select:focus {
+  border-color: var(--bislk-accent);
+  box-shadow: 0 0 0 3px rgba(245,166,35,0.18);
+}
+.section-divider {
+  border: none;
+  border-top: 2px dashed #e9ecef;
+  margin: 24px 0;
+}
+.ext-fields { display: none; }
+.ext-fields.active { display: block; }
+
+/* ── Page header banner ───────────────────────── */
+.page-banner {
+  background: var(--bislk-primary);
+  padding: 36px 0 32px;
+  color: #fff;
+}
+.page-banner h1 { font-size: 1.8rem; font-weight: 700; }
+.page-banner p  { color: rgba(255,255,255,0.65); font-size: 0.95rem; }
+
+/* ── Reviews ──────────────────────────────────── */
+.review-card {
+  background: #fff;
+  border: 1px solid #f0f0f0;
+  border-radius: 10px;
+  padding: 18px 20px;
+  margin-bottom: 14px;
+}
+.reviewer-name { font-weight: 600; font-size: 0.95rem; }
+.review-date   { font-size: 0.78rem; color: var(--bislk-muted); }
+.review-body   { font-size: 0.92rem; line-height: 1.65; color: #3a3a4a; }
+
+/* ── Report tables ────────────────────────────── */
+.report-card {
+  background: var(--bislk-card-bg);
+  border: 1px solid #e9ecef;
+  border-radius: var(--bislk-radius);
+  padding: 24px;
+  box-shadow: var(--bislk-shadow);
+  margin-bottom: 2rem;
+}
+.report-card .report-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  border-left: 4px solid var(--bislk-accent);
+  padding-left: 12px;
+  margin-bottom: 1.2rem;
+}
+.table-bislk th {
+  background: var(--bislk-primary);
+  color: #fff;
+  font-weight: 500;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+.table-bislk td { font-size: 0.88rem; vertical-align: middle; }
+.table-bislk tbody tr:hover { background: #fffbf2; }
+
+/* ── Filter sidebar ───────────────────────────── */
+.filter-sidebar {
+  background: var(--bislk-card-bg);
+  border: 1px solid #eee;
+  border-radius: var(--bislk-radius);
+  padding: 20px;
+  box-shadow: var(--bislk-shadow);
+}
+.filter-sidebar .filter-title {
+  font-weight: 700;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--bislk-muted);
+  margin-bottom: 12px;
+}
+
+/* ── Footer ───────────────────────────────────── */
+.bislk-footer {
+  background: var(--bislk-primary);
+  border-top: 3px solid var(--bislk-accent);
+}
+.footer-link:hover { color: var(--bislk-accent) !important; }
+
+/* ── Utility ──────────────────────────────────── */
+.text-accent  { color: var(--bislk-accent) !important; }
+.bg-bislk     { background: var(--bislk-primary) !important; }
+.btn-bislk    { background: var(--bislk-primary); color: #fff; }
+.btn-bislk:hover { background: #0f3460; color: #fff; }
+.placeholder-img {
+  background: #e9ecef;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #aaa;
+  font-size: 2rem;
+}
+
+/* ── Auth pages (login / signup) ─────────────── */
+
+/* Role tab toggle */
+.auth-tab-group {
+  display: flex;
+  background: #f0f2f5;
+  border-radius: 10px;
+  padding: 4px;
+  gap: 4px;
+}
+.auth-tab {
+  flex: 1;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--bislk-muted);
+  cursor: pointer;
+  transition: background 0.18s, color 0.18s, box-shadow 0.18s;
+  white-space: nowrap;
+}
+.auth-tab.active {
+  background: #fff;
+  color: var(--bislk-primary);
+  box-shadow: 0 1px 6px rgba(0,0,0,0.10);
+}
+.auth-tab:not(.active):hover {
+  background: rgba(255,255,255,0.6);
+  color: var(--bislk-text);
+}
+
+/* Password strength bar */
+.strength-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 6px;
+}
+.strength-fill {
+  height: 6px;
+  border-radius: 3px;
+  transition: width 0.3s ease, background 0.3s ease;
+  min-width: 8px;
+}
+.strength-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+
+/* ── Navbar auth avatar ───────────────────────── */
+.nav-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--bislk-accent);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.nav-avatar--owner {
+  background: rgba(255,255,255,0.2);
+  border: 1.5px solid var(--bislk-accent);
+  color: var(--bislk-accent);
+}
+/* Soften the sign-out red so it doesn't clash on dark dropdown */
+.text-danger-soft { color: #ff8a80 !important; }
+.dropdown-item.text-danger-soft:hover { color: #ff5252 !important; }
+
+
+/* ── Nearby distance badge ────────────────────── */
+.distance-badge {
+  background: rgba(26,26,46,0.07);
+  color: var(--bislk-primary);
+  border-radius: 20px;
+  padding: 2px 8px;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+
+/* ── Navbar improvements ──────────────────────── */
+/* Thin vertical separator between nav groups */
+.nav-divider {
+  display: inline-block;
+  width: 1px;
+  height: 20px;
+  background: rgba(255,255,255,0.15);
+  vertical-align: middle;
+  margin: 0 4px;
+}
+/* First-name label next to avatar */
+.nav-username {
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: rgba(255,255,255,0.85);
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+
+/* ── Business hero ────────────────────────────── */
+.biz-hero {
+  position: relative;
+  min-height: 300px;
+  display: flex;
+  align-items: flex-end;
+}
+.biz-hero-bg {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  filter: brightness(0.45);
+}
+.biz-hero-bg--plain {
+  background: var(--bislk-primary);
+  filter: none;
+}
+.biz-hero-overlay {
+  position: relative;
+  width: 100%;
+  background: linear-gradient(to top, rgba(10,10,30,0.85) 0%, transparent 100%);
+}
+.biz-hero-title {
+  font-size: 2rem;
+  font-weight: 800;
+  color: #fff;
+  line-height: 1.2;
+  margin-top: 8px;
+}
+.biz-breadcrumb .breadcrumb-item a {
+  color: rgba(255,255,255,0.6);
+  text-decoration: none;
+}
+.biz-breadcrumb .breadcrumb-item a:hover { color: #fff; }
+.biz-breadcrumb .breadcrumb-item.active  { color: rgba(255,255,255,0.4); }
+.biz-breadcrumb .breadcrumb-item + .breadcrumb-item::before {
+  color: rgba(255,255,255,0.3);
+}
+
+
+/* ── Extension stat blocks ────────────────────── */
+.ext-stat {
+  background: var(--bislk-surface);
+  border-radius: 8px;
+  padding: 12px 14px;
+}
+.ext-stat-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--bislk-muted);
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.ext-stat-value {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--bislk-text);
+}
+
+
+/* ── Business detail contact rows ─────────────── */
+.biz-contact-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 0.88rem;
+  color: var(--bislk-text);
+  margin-bottom: 10px;
+}
+.biz-contact-row i {
+  margin-top: 2px;
+  width: 14px;
+  flex-shrink: 0;
+}

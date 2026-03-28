@@ -1,0 +1,1510 @@
+{% extends "base.html" %}
+{% block title %}SQL Queries — BisLK{% endblock %}
+
+{% block extra_head %}
+<style>
+  /* ── SQL Queries Page ──────────────────────── */
+
+  /* Section label pill */
+  .sql-section-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--bislk-accent);
+    color: #1a1a2e;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 4px 14px;
+    border-radius: 20px;
+    margin-bottom: 1.4rem;
+  }
+
+  /* Divider between sections */
+  .sql-section-divider {
+    border: none;
+    border-top: 2px dashed #dee2e6;
+    margin: 3rem 0 2.5rem;
+  }
+
+  /* Query group: positioning context for the tooltip + dims siblings on hover */
+  .query-group {
+    position: relative;
+    transition: opacity 0.25s ease;
+  }
+  .query-list:has(.query-group:hover) .query-group:not(:hover) {
+    opacity: 0.38;
+  }
+
+  /* Individual query card */
+  .query-card {
+    background: var(--bislk-card-bg);
+    border: 1px solid #e4e8ef;
+    border-radius: var(--bislk-radius);
+    overflow: hidden;
+    box-shadow: var(--bislk-shadow);
+    transition: transform 0.22s cubic-bezier(0.34,1.56,0.64,1),
+                box-shadow 0.22s ease,
+                border-color 0.22s ease;
+    cursor: default;
+  }
+  .query-group:hover .query-card {
+    transform: scale(1.012) translateY(-2px);
+    box-shadow: 0 10px 28px rgba(0,0,0,0.12);
+    border-color: var(--bislk-accent);
+  }
+
+  /* Card header */
+  .query-card-header {
+    background: var(--bislk-primary);
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .query-number {
+    background: var(--bislk-accent);
+    color: #1a1a2e;
+    font-size: 0.7rem;
+    font-weight: 800;
+    padding: 2px 9px;
+    border-radius: 12px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .query-title-text {
+    color: #fff;
+    font-size: 0.875rem;
+    font-weight: 600;
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .query-type-badge {
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 10px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .badge-ddl  { background: #3498db22; color: #3498db; }
+  .badge-dml  { background: #2ecc7122; color: #27ae60; }
+  .badge-dql  { background: #9b59b622; color: #9b59b6; }
+  .badge-view { background: #e67e2222; color: #e67e22; }
+
+  /* Code block */
+  .query-code {
+    margin: 0;
+    padding: 18px 20px;
+    background: #0d1117;
+    font-family: 'Fira Code', 'Cascadia Code', 'Consolas', 'Monaco', monospace;
+    font-size: 0.8rem;
+    line-height: 1.7;
+    color: #e6edf3;
+    overflow-x: auto;
+    white-space: pre;
+    border-radius: 0;
+    max-height: 340px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #30363d #0d1117;
+  }
+  .query-code::-webkit-scrollbar { width: 5px; height: 5px; }
+  .query-code::-webkit-scrollbar-track { background: #0d1117; }
+  .query-code::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
+
+  /* Syntax colouring via spans (populated by JS) */
+  .sql-kw   { color: #ff7b72; }   /* keywords: SELECT, FROM, WHERE … */
+  .sql-fn   { color: #d2a8ff; }   /* functions: COUNT, AVG, ROUND … */
+  .sql-str  { color: #a5d6ff; }   /* strings */
+  .sql-num  { color: #79c0ff; }   /* numbers */
+  .sql-cmt  { color: #8b949e; font-style: italic; } /* comments */
+  .sql-tbl  { color: #ffa657; }   /* table/view names */
+
+  /* ── Explanation panel — floats ABOVE the card ── */
+  .query-tooltip {
+    /* Sits outside .query-card, positioned relative to .query-group */
+    position: absolute;
+    bottom: calc(100% + 10px); /* push above the card */
+    left: 0;
+    right: 0;
+    background: #1a1a2e;
+    color: #e8eaf2;
+    border: 1px solid var(--bislk-accent);
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-size: 0.82rem;
+    line-height: 1.6;
+    box-shadow: 0 6px 22px rgba(0,0,0,0.22);
+    z-index: 200;
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(4px);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+  }
+  /* Down-pointing arrow */
+  .query-tooltip::after {
+    content: '';
+    position: absolute;
+    bottom: -7px;
+    left: 28px;
+    width: 12px;
+    height: 12px;
+    background: #1a1a2e;
+    border-right: 1px solid var(--bislk-accent);
+    border-bottom: 1px solid var(--bislk-accent);
+    transform: rotate(45deg);
+  }
+  /* Triggered by hovering the entire group */
+  .query-group:hover .query-tooltip {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .tooltip-label {
+    color: var(--bislk-accent);
+    font-weight: 700;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    margin-bottom: 5px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  /* Copy button */
+  .btn-copy {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.15);
+    color: rgba(255,255,255,0.7);
+    font-size: 0.72rem;
+    padding: 3px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    flex-shrink: 0;
+  }
+  .btn-copy:hover   { background: rgba(245,166,35,0.25); color: #f5a623; }
+  .btn-copy.copied  { background: rgba(46,204,113,0.25); color: #2ecc71; }
+
+  /* Stats strip */
+  .queries-stats {
+    display: flex;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 2rem;
+  }
+  .stat-pill {
+    background: var(--bislk-card-bg);
+    border: 1px solid #e4e8ef;
+    border-radius: 8px;
+    padding: 8px 18px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--bislk-text);
+    box-shadow: var(--bislk-shadow);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .stat-pill i { color: var(--bislk-accent); }
+
+  /* Index sidebar navigation */
+  .sql-index {
+    background: var(--bislk-card-bg);
+    border: 1px solid #e4e8ef;
+    border-radius: var(--bislk-radius);
+    padding: 16px;
+    box-shadow: var(--bislk-shadow);
+    position: sticky;
+    top: 80px;
+    max-height: calc(100vh - 100px);
+    overflow-y: auto;
+    scrollbar-width: thin;
+  }
+  .sql-index-title {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--bislk-muted);
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #eee;
+  }
+  .sql-index a {
+    display: block;
+    font-size: 0.78rem;
+    color: var(--bislk-text);
+    text-decoration: none;
+    padding: 5px 8px;
+    border-radius: 5px;
+    transition: background 0.15s, color 0.15s;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .sql-index a:hover { background: #fff7ed; color: var(--bislk-accent); }
+  .sql-index .index-sep {
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--bislk-accent);
+    font-weight: 700;
+    padding: 10px 8px 4px;
+  }
+</style>
+{% endblock %}
+
+
+{% block content %}
+
+<!-- ═══════════════════════════════════════════
+     PAGE BANNER
+════════════════════════════════════════════ -->
+<div class="page-banner">
+  <div class="container">
+    <div class="d-flex align-items-center gap-3 mb-2">
+      <i class="fa fa-database fa-lg text-warning"></i>
+      <h1 class="mb-0">SQL Queries</h1>
+    </div>
+    <p class="mb-0">
+      All database queries used to build and run BisLK — schema definitions, views, and application queries.
+    </p>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════
+     MAIN CONTENT
+════════════════════════════════════════════ -->
+<div class="container py-5">
+  <div class="row g-4">
+
+    <!-- ── Sidebar index ── -->
+    <div class="col-lg-3 d-none d-lg-block">
+      <div class="sql-index">
+        <div class="sql-index-title"><i class="fa fa-list me-1"></i>Quick Index</div>
+
+        <div class="index-sep">Schema Queries</div>
+        <a href="#q1">Q1 · Create Database</a>
+        <a href="#q2">Q2 · Table: users</a>
+        <a href="#q3">Q3 · Table: owners</a>
+        <a href="#q4">Q4 · Table: categories</a>
+        <a href="#q5">Q5 · Table: businesses</a>
+        <a href="#q6">Q6 · Table: business_images</a>
+        <a href="#q7">Q7 · Table: reviews</a>
+        <a href="#q8">Q8 · Table: restaurants</a>
+        <a href="#q9">Q9 · Table: hotels</a>
+        <a href="#q10">Q10 · Table: salons</a>
+        <a href="#q11">Q11 · View: business_ratings</a>
+        <a href="#q12">Q12 · View: business_detail</a>
+
+        <div class="index-sep mt-1">Application Queries</div>
+        <a href="#aq1">AQ1 · Load Categories</a>
+        <a href="#aq2">AQ2 · Top Rated Businesses</a>
+        <a href="#aq3">AQ3 · Primary Images</a>
+        <a href="#aq4">AQ4 · Search Businesses</a>
+        <a href="#aq5">AQ5 · List Cities</a>
+        <a href="#aq6">AQ6 · Category by Slug</a>
+        <a href="#aq7">AQ7 · Businesses by Category</a>
+        <a href="#aq8">AQ8 · Business Detail</a>
+        <a href="#aq9">AQ9 · Business Images</a>
+        <a href="#aq10">AQ10 · Reviews with Users</a>
+        <a href="#aq11">AQ11 · Extension Data</a>
+        <a href="#aq12">AQ12 · Rating Breakdown</a>
+        <a href="#aq13">AQ13 · Nearby (Haversine)</a>
+        <a href="#aq14">AQ14 · Insert Business</a>
+        <a href="#aq15">AQ15 · Insert Image</a>
+        <a href="#aq16">AQ16 · Insert Restaurant</a>
+        <a href="#aq17">AQ17 · Insert Hotel</a>
+        <a href="#aq18">AQ18 · Insert Salon</a>
+        <a href="#aq19">AQ19 · Insert Review</a>
+        <a href="#aq20">AQ20 · Report: Top Rated</a>
+        <a href="#aq21">AQ21 · Report: Category Avg</a>
+        <a href="#aq22">AQ22 · Report: Most Reviewed</a>
+        <a href="#aq23">AQ23 · Monthly Trend</a>
+        <a href="#aq24">AQ24 · Register Customer</a>
+        <a href="#aq25">AQ25 · Register Owner</a>
+        <a href="#aq26">AQ26 · Login: Customer</a>
+        <a href="#aq27">AQ27 · Login: Owner</a>
+        <a href="#aq28">AQ28 · Check Reviewed</a>
+        <a href="#aq29">AQ29 · User Location</a>
+      </div>
+    </div>
+
+
+    <!-- ── Query cards ── -->
+    <div class="col-lg-9">
+
+      <!-- Stats strip -->
+      <div class="queries-stats">
+        <div class="stat-pill"><i class="fa fa-table"></i> 10 Table Definitions</div>
+        <div class="stat-pill"><i class="fa fa-eye"></i> 2 Views</div>
+        <div class="stat-pill"><i class="fa fa-magnifying-glass"></i> 14 SELECT Queries</div>
+        <div class="stat-pill"><i class="fa fa-pen-to-square"></i> 8 INSERT Queries</div>
+      </div>
+
+
+      <!-- ════════════════════════════════════
+           SECTION 1: SCHEMA QUERIES
+      ═════════════════════════════════════ -->
+      <div class="mb-4">
+        <span class="sql-section-label">
+          <i class="fa fa-database"></i> Schema Queries — schema.sql
+        </span>
+      </div>
+
+      <div class="query-list d-flex flex-column gap-4">
+
+        <!-- Q1 -->
+        <div class="query-group" id="q1">
+          <div class="query-card">
+            <div class="query-card-header">
+              <span class="query-number">Q1</span>
+              <span class="query-title-text">Create Database</span>
+              <span class="query-type-badge badge-ddl">DDL</span>
+              <button class="btn-copy" data-target="code-q1">
+                <i class="fa fa-copy me-1"></i>Copy
+              </button>
+            </div>
+            <pre class="query-code" id="code-q1">CREATE DATABASE IF NOT EXISTS bislk_db
+  CHARACTER SET utf8mb4
+  COLLATE utf8mb4_unicode_ci;
+
+USE bislk_db;</pre>
+          </div>
+          <div class="query-tooltip">
+              <div class="tooltip-label"><i class="fa fa-circle-info"></i> What it does</div>
+              Creates the <code>bislk_db</code> database with full Unicode support and selects it for use. <code>IF NOT EXISTS</code> prevents an error if the database is already there.
+            </div>
+        </div>
+
+        <!-- Q2 -->
+        <div class="query-group" id="q2">
+          <div class="query-card">
+            <div class="query-card-header">
+              <span class="query-number">Q2</span>
+              <span class="query-title-text">Create Table: users</span>
+              <span class="query-type-badge badge-ddl">DDL</span>
+              <button class="btn-copy" data-target="code-q2">
+                <i class="fa fa-copy me-1"></i>Copy
+              </button>
+            </div>
+            <pre class="query-code" id="code-q2">CREATE TABLE users (
+    user_id       INT             NOT NULL AUTO_INCREMENT,
+    full_name     VARCHAR(100)    NOT NULL,
+    email         VARCHAR(150)    NOT NULL,
+    password_hash VARCHAR(255)    NOT NULL,
+    phone         VARCHAR(20)     DEFAULT NULL,
+    city          VARCHAR(100)    DEFAULT NULL,
+    latitude      DECIMAL(9,7)    DEFAULT NULL,
+    longitude     DECIMAL(10,7)   DEFAULT NULL,
+    joined_at     DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (user_id),
+    UNIQUE KEY uq_users_email (email)
+) ENGINE=InnoDB;</pre>
+          </div>
+          <div class="query-tooltip">
+              <div class="tooltip-label"><i class="fa fa-circle-info"></i> What it does</div>
+              Creates the <strong>users</strong> table. Includes city and GPS coordinates to support the nearby-business search feature. Passwords are stored as bcrypt hashes.
+            </div>
+        </div>
+
+        <!-- Q3 -->
+        <div class="query-group" id="q3">
+          <div class="query-card">
+            <div class="query-card-header">
+              <span class="query-number">Q3</span>
+              <span class="query-title-text">Create Table: owners</span>
+              <span class="query-type-badge badge-ddl">DDL</span>
+              <button class="btn-copy" data-target="code-q3">
+                <i class="fa fa-copy me-1"></i>Copy
+              </button>
+            </div>
+            <pre class="query-code" id="code-q3">CREATE TABLE owners (
+    owner_id      INT             NOT NULL AUTO_INCREMENT,
+    full_name     VARCHAR(100)    NOT NULL,
+    email         VARCHAR(150)    NOT NULL,
+    password_hash VARCHAR(255)    NOT NULL,
+    phone         VARCHAR(20)     DEFAULT NULL,
+    joined_at     DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (owner_id),
+    UNIQUE KEY uq_owners_email (email)
+) ENGINE=InnoDB;</pre>
+          </div>
+          <div class="query-tooltip">
+              <div class="tooltip-label"><i class="fa fa-circle-info"></i> What it does</div>
+              Creates the <strong>owners</strong> table — a separate account type from customers. Business owners sign up here and are linked to their businesses via <code>businesses.owner_id</code>.
+            </div>
+        </div>
+
+        <!-- Q4 -->
+        <div class="query-group" id="q4">
+          <div class="query-card">
+            <div class="query-card-header">
+              <span class="query-number">Q4</span>
+              <span class="query-title-text">Create Table: categories</span>
+              <span class="query-type-badge badge-ddl">DDL</span>
+              <button class="btn-copy" data-target="code-q4">
+                <i class="fa fa-copy me-1"></i>Copy
+              </button>
+            </div>
+            <pre class="query-code" id="code-q4">CREATE TABLE categories (
+    category_id   INT             NOT NULL AUTO_INCREMENT,
+    name          VARCHAR(100)    NOT NULL,
+    slug          VARCHAR(100)    NOT NULL,
+    description   TEXT            DEFAULT NULL,
+    icon          VARCHAR(100)    DEFAULT NULL,  -- e.g. 'fa-utensils'
+
+    PRIMARY KEY (category_id),
+    UNIQUE KEY uq_categories_slug (slug)
+) ENGINE=InnoDB;</pre>
+          </div>
+          <div class="query-tooltip">
+              <div class="tooltip-label"><i class="fa fa-circle-info"></i> What it does</div>
+              Creates the <strong>categories</strong> table (e.g. Restaurant, Hotel). The <code>slug</code> is a URL-friendly name like "restaurants" and must be unique.
+            </div>
+        </div>
+
+        <!-- Q4 -->
+        <div class="query-group" id="q5">
+          <div class="query-card">
+            <div class="query-card-header">
+              <span class="query-number">Q5</span>
+              <span class="query-title-text">Create Table: businesses</span>
+              <span class="query-type-badge badge-ddl">DDL</span>
+              <button class="btn-copy" data-target="code-q5">
+                <i class="fa fa-copy me-1"></i>Copy
+              </button>
+            </div>
+            <pre class="query-code" id="code-q5">CREATE TABLE businesses (
+    business_id   INT             NOT NULL AUTO_INCREMENT,
+    name          VARCHAR(200)    NOT NULL,
+    address       TEXT            NOT NULL,
+    city          VARCHAR(100)    NOT NULL,
+    latitude      DECIMAL(10,7)   DEFAULT NULL,
+    longitude     DECIMAL(10,7)   DEFAULT NULL,
+    phone         VARCHAR(20)     DEFAULT NULL,
+    email         VARCHAR(150)    DEFAULT NULL,
+    website       VARCHAR(500)    DEFAULT NULL,
+    description   TEXT            DEFAULT NULL,
+    category_id   INT             NOT NULL,
+    owner_id      INT             DEFAULT NULL,
+    is_verified   TINYINT(1)      NOT NULL DEFAULT 0,
+    created_at    DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (business_id),
+    KEY idx_businesses_category  (category_id),
+    KEY idx_businesses_owner     (owner_id),
+    KEY idx_businesses_city      (city),
+    KEY idx_businesses_location  (latitude, longitude),
+
+    CONSTRAINT fk_businesses_category
+        FOREIGN KEY (category_id) REFERENCES categories (category_id)
+        ON UPDATE CASCADE ON DELETE RESTRICT,
+
+    CONSTRAINT fk_businesses_owner
+        FOREIGN KEY (owner_id) REFERENCES owners (owner_id)
+        ON UPDATE CASCADE ON DELETE SET NULL
+) ENGINE=InnoDB;</pre>
+          </div>
+          <div class="query-tooltip">
+              <div class="tooltip-label"><i class="fa fa-circle-info"></i> What it does</div>
+              The main table — every business listing lives here. Stores name, location, contact details, and links to a category. Lat/lon coordinates enable the nearby search.
+            </div>
+        </div>
+
+        <!-- Q5 -->
+        <div class="query-group" id="q6">
+          <div class="query-card">
+            <div class="query-card-header">
+              <span class="query-number">Q6</span>
+              <span class="query-title-text">Create Table: business_images</span>
+              <span class="query-type-badge badge-ddl">DDL</span>
+              <button class="btn-copy" data-target="code-q6">
+                <i class="fa fa-copy me-1"></i>Copy
+              </button>
+            </div>
+            <pre class="query-code" id="code-q6">CREATE TABLE business_images (
+    image_id      INT             NOT NULL AUTO_INCREMENT,
+    business_id   INT             NOT NULL,
+    image_url     VARCHAR(500)    NOT NULL,
+    caption       VARCHAR(255)    DEFAULT NULL,
+    is_primary    TINYINT(1)      NOT NULL DEFAULT 0,
+    uploaded_at   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (image_id),
+    KEY idx_images_business (business_id),
+
+    CONSTRAINT fk_images_business
+        FOREIGN KEY (business_id) REFERENCES businesses (business_id)
+        ON UPDATE CASCADE ON DELETE CASCADE
+) ENGINE=InnoDB;</pre>
+          </div>
+          <div class="query-tooltip">
+              <div class="tooltip-label"><i class="fa fa-circle-info"></i> What it does</div>
+              Stores photos for each business. Each row links to a business and one image is flagged as the primary cover photo shown in cards and search results.
+            </div>
+        </div>
+
+        <!-- Q6 -->
+        <div class="query-group" id="q7">
+          <div class="query-card">
+            <div class="query-card-header">
+              <span class="query-number">Q7</span>
+              <span class="query-title-text">Create Table: reviews</span>
+              <span class="query-type-badge badge-ddl">DDL</span>
+              <button class="btn-copy" data-target="code-q7">
+                <i class="fa fa-copy me-1"></i>Copy
+              </button>
+            </div>
+            <pre class="query-code" id="code-q7">CREATE TABLE reviews (
+    review_id     INT             NOT NULL AUTO_INCREMENT,
+    user_id       INT             NOT NULL,
+    business_id   INT             NOT NULL,
+    rating        TINYINT         NOT NULL,
+    title         VARCHAR(200)    DEFAULT NULL,
+    body          TEXT            DEFAULT NULL,
+    created_at    DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (review_id),
+    UNIQUE KEY uq_reviews_user_business (user_id, business_id),
+    KEY idx_reviews_business (business_id),
+
+    CONSTRAINT chk_reviews_rating
+        CHECK (rating BETWEEN 1 AND 5),
+
+    CONSTRAINT fk_reviews_user
+        FOREIGN KEY (user_id) REFERENCES users (user_id)
+        ON UPDATE CASCADE ON DELETE CASCADE,
+
+    CONSTRAINT fk_reviews_business
+        FOREIGN KEY (business_id) REFERENCES businesses (business_id)
+        ON UPDATE CASCADE ON DELETE CASCADE
+) ENGINE=InnoDB;</pre>
+          </div>
+          <div class="query-tooltip">
+              <div class="tooltip-label"><i class="fa fa-circle-info"></i> What it does</div>
+              Stores reviews and star ratings (1–5). A user can review each business only once, enforced by a unique constraint on <code>(user_id, business_id)</code>.
+            </div>
+        </div>
+
+        <!-- Q7 -->
+        <div class="query-group" id="q8">
+          <div class="query-card">
+            <div class="query-card-header">
+              <span class="query-number">Q8</span>
+              <span class="query-title-text">Create Table: restaurants (Extension)</span>
+              <span class="query-type-badge badge-ddl">DDL</span>
+              <button class="btn-copy" data-target="code-q8">
+                <i class="fa fa-copy me-1"></i>Copy
+              </button>
+            </div>
+            <pre class="query-code" id="code-q8">CREATE TABLE restaurants (
+    business_id       INT             NOT NULL,
+    cuisine_type      VARCHAR(100)    NOT NULL DEFAULT 'Sri Lankan',
+    price_range       ENUM('$','$$','$$$','$$$$') NOT NULL DEFAULT '$$',
+    has_delivery      TINYINT(1)      NOT NULL DEFAULT 0,
+    seating_capacity  INT             DEFAULT NULL,
+
+    PRIMARY KEY (business_id),
+
+    CONSTRAINT fk_restaurants_business
+        FOREIGN KEY (business_id) REFERENCES businesses (business_id)
+        ON UPDATE CASCADE ON DELETE CASCADE
+) ENGINE=InnoDB;</pre>
+          </div>
+          <div class="query-tooltip">
+              <div class="tooltip-label"><i class="fa fa-circle-info"></i> What it does</div>
+              Extension table for restaurants only. Adds cuisine type, price range, delivery option, and seating capacity — details that don't apply to other business types.
+            </div>
+        </div>
+
+        <!-- Q8 -->
+        <div class="query-group" id="q9">
+          <div class="query-card">
+            <div class="query-card-header">
+              <span class="query-number">Q9</span>
+              <span class="query-title-text">Create Table: hotels (Extension)</span>
+              <span class="query-type-badge badge-ddl">DDL</span>
+              <button class="btn-copy" data-target="code-q9">
+                <i class="fa fa-copy me-1"></i>Copy
+              </button>
+            </div>
+            <pre class="query-code" id="code-q9">CREATE TABLE hotels (
+    business_id       INT             NOT NULL,
+    star_rating       TINYINT         NOT NULL DEFAULT 3,
+    total_rooms       INT             DEFAULT NULL,
+    has_pool          TINYINT(1)      NOT NULL DEFAULT 0,
+    check_in_time     TIME            NOT NULL DEFAULT '14:00:00',
+    check_out_time    TIME            NOT NULL DEFAULT '12:00:00',
+
+    PRIMARY KEY (business_id),
+
+    CONSTRAINT chk_hotels_stars
+        CHECK (star_rating BETWEEN 1 AND 5),
+
+    CONSTRAINT fk_hotels_business
+        FOREIGN KEY (business_id) REFERENCES businesses (business_id)
+        ON UPDATE CASCADE ON DELETE CASCADE
+) ENGINE=InnoDB;</pre>
+          </div>
+          <div class="query-tooltip">
+              <div class="tooltip-label"><i class="fa fa-circle-info"></i> What it does</div>
+              Extension table for hotels only. Adds star rating, room count, pool availability, and check-in / check-out times.
+            </div>
+        </div>
+
+        <!-- Q9 -->
+        <div class="query-group" id="q10">
+          <div class="query-card">
+            <div class="query-card-header">
+              <span class="query-number">Q10</span>
+              <span class="query-title-text">Create Table: salons (Extension)</span>
+              <span class="query-type-badge badge-ddl">DDL</span>
+              <button class="btn-copy" data-target="code-q10">
+                <i class="fa fa-copy me-1"></i>Copy
+              </button>
+            </div>
+            <pre class="query-code" id="code-q10">CREATE TABLE salons (
+    business_id       INT             NOT NULL,
+    services          TEXT            DEFAULT NULL,
+    gender_served     ENUM('Male','Female','Unisex') NOT NULL DEFAULT 'Unisex',
+    by_appointment    TINYINT(1)      NOT NULL DEFAULT 0,
+
+    PRIMARY KEY (business_id),
+
+    CONSTRAINT fk_salons_business
+        FOREIGN KEY (business_id) REFERENCES businesses (business_id)
+        ON UPDATE CASCADE ON DELETE CASCADE
+) ENGINE=InnoDB;</pre>
+          </div>
+          <div class="query-tooltip">
+              <div class="tooltip-label"><i class="fa fa-circle-info"></i> What it does</div>
+              Extension table for salons only. Adds services list, gender served (Male / Female / Unisex), and whether booking by appointment is required.
+            </div>
+        </div>
+
+        <!-- Q10 -->
+        <div class="query-group" id="q11">
+          <div class="query-card">
+            <div class="query-card-header">
+              <span class="query-number">Q11</span>
+              <span class="query-title-text">View: vw_business_ratings</span>
+              <span class="query-type-badge badge-view">VIEW</span>
+              <button class="btn-copy" data-target="code-q11">
+                <i class="fa fa-copy me-1"></i>Copy
+              </button>
+            </div>
+            <pre class="query-code" id="code-q11">CREATE OR REPLACE VIEW vw_business_ratings AS
+SELECT
+    b.business_id,
+    b.name,
+    b.city,
+    c.name          AS category,
+    COUNT(r.review_id)          AS review_count,
+    ROUND(AVG(r.rating), 1)     AS avg_rating
+FROM businesses b
+JOIN categories c  ON b.category_id = c.category_id
+LEFT JOIN reviews r ON b.business_id = r.business_id
+GROUP BY b.business_id, b.name, b.city, c.name;</pre>
+          </div>
+          <div class="query-tooltip">
+              <div class="tooltip-label"><i class="fa fa-circle-info"></i> What it does</div>
+              A saved view that pre-calculates the average rating and review count for every business. Other queries use it to avoid repeating the same <code>AVG/COUNT</code> logic.
+            </div>
+        </div>
+
+        <!-- Q11 -->
+        <div class="query-group" id="q12">
+          <div class="query-card">
+            <div class="query-card-header">
+              <span class="query-number">Q12</span>
+              <span class="query-title-text">View: vw_business_detail</span>
+              <span class="query-type-badge badge-view">VIEW</span>
+              <button class="btn-copy" data-target="code-q12">
+                <i class="fa fa-copy me-1"></i>Copy
+              </button>
+            </div>
+            <pre class="query-code" id="code-q12">CREATE OR REPLACE VIEW vw_business_detail AS
+SELECT
+    b.*,
+    c.name          AS category_name,
+    c.slug          AS category_slug,
+    c.icon          AS category_icon,
+    o.full_name     AS owner_name,
+    img.image_url   AS primary_image,
+    vbr.avg_rating,
+    vbr.review_count
+FROM businesses b
+JOIN  categories c  ON b.category_id = c.category_id
+LEFT JOIN owners o  ON b.owner_id    = o.owner_id
+LEFT JOIN business_images img
+    ON b.business_id = img.business_id AND img.is_primary = 1
+LEFT JOIN vw_business_ratings vbr
+    ON b.business_id = vbr.business_id;</pre>
+          </div>
+          <div class="query-tooltip">
+              <div class="tooltip-label"><i class="fa fa-circle-info"></i> What it does</div>
+              A view that combines a business with its category details, primary image URL, and rating stats in one place. Used as a convenient single source for the detail page.
+            </div>
+        </div>
+
+      </div>{# end schema query-list #}
+
+
+      <!-- ════════════════════════════════════
+           DIVIDER
+      ═════════════════════════════════════ -->
+      <hr class="sql-section-divider">
+
+
+      <!-- ════════════════════════════════════
+           SECTION 2: APPLICATION QUERIES
+      ═════════════════════════════════════ -->
+      <div class="mb-4">
+        <span class="sql-section-label" style="background:var(--bislk-primary);color:var(--bislk-accent);">
+          <i class="fa fa-flask"></i> Additional Queries — app.py
+        </span>
+        <p class="text-muted small mt-2 mb-0">
+          These queries are executed at runtime by the Flask application to power each page and feature.
+        </p>
+      </div>
+
+      <div class="query-list d-flex flex-column gap-4">
+
+        <!-- AQ1 -->
+        <div class="query-group" id="aq1">
+          <div class="query-card">
+            <div class="query-card-header">
+              <span class="query-number">AQ1</span>
+              <span class="query-title-text">Load All Categories (Navbar)</span>
+              <span class="query-type-badge badge-dql">DQL</span>
+              <button class="btn-copy" data-target="code-aq1">
+                <i class="fa fa-copy me-1"></i>Copy
+              </button>
+            </div>
+            <pre class="query-code" id="code-aq1">SELECT * FROM categories ORDER BY name;</pre>
+          </div>
+          <div class="query-tooltip">
+              <div class="tooltip-label"><i class="fa fa-circle-info"></i> What it does</div>
+              Fetches all categories sorted A–Z. This runs on every page load (via Flask's context processor) to keep the navbar dropdown always populated.
+            </div>
+        </div>
+
+        <!-- AQ2 -->
+        <div class="query-group" id="aq2">
+          <div class="query-card">
+            <div class="query-card-header">
+              <span class="query-number">AQ2</span>
+              <span class="query-title-text">Top Rated Businesses (Homepage)</span>
+              <span class="query-type-badge badge-dql">DQL</span>
+              <button class="btn-copy" data-target="code-aq2">
+                <i class="fa fa-copy me-1"></i>Copy
+              </button>
+            </div>
+            <pre class="query-code" id="code-aq2">SELECT * FROM vw_business_ratings
+WHERE review_count > 0
+ORDER BY avg_rating DESC, review_count DESC
+LIMIT 6;</pre>
+          </div>
+          <div class="query-tooltip">
+              <div class="tooltip-label"><i class="fa fa-circle-info"></i> What it does</div>
+              Gets the 6 best-rated businesses with at least one review for the homepage "Top Rated" section. Ties in rating are broken by review count.
+            </div>
+        </div>
+
+        <!-- AQ3 -->
+        <div class="query-group" id="aq3">
+          <div class="query-card">
+            <div class="query-card-header">
+              <span class="query-number">AQ3</span>
+              <span class="query-title-text">Fetch Primary Images for Businesses</span>
+              <span class="query-type-badge badge-dql">DQL</span>
+              <button class="btn-copy" data-target="code-aq3">
+                <i class="fa fa-copy me-1"></i>Copy
+              </button>
+            </div>
+            <pre class="query-code" id="code-aq3">SELECT business_id, image_url FROM business_images
+WHERE business_id IN (%s, %s, ...)   -- one placeholder per business ID
+  AND is_primary = 1;</pre>
+          </div>
+          <div class="query-tooltip">
+              <div class="tooltip-label"><i class="fa fa-circle-info"></i> What it does</div>
+              Loads cover images for several businesses in one query using an <code>IN</code> clause, avoiding a separate query per business.
+            </div>
+        </div>
+
+        <!-- AQ4 -->
+        <div class="query-group" id="aq4">
+          <div class="query-card">
+            <div class="query-card-header">
+              <span class="query-number">AQ4</span>
+              <span class="query-title-text">Search Businesses (Dynamic Filters)</span>
+              <span class="query-type-badge badge-dql">DQL</span>
+              <button class="btn-copy" data-target="code-aq4">
+                <i class="fa fa-copy me-1"></i>Copy
+              </button>
+            </div>
+            <pre class="query-code" id="code-aq4">SELECT b.business_id, b.name, b.city, b.address, b.phone,
+       c.name AS category, c.icon AS category_icon,
+       COALESCE(vbr.avg_rating, 0)    AS avg_rating,
+       COALESCE(vbr.review_count, 0)  AS review_count,
+       img.image_url AS primary_image
+FROM businesses b
+JOIN categories c ON b.category_id = c.category_id
+LEFT JOIN vw_business_ratings vbr ON b.business_id = vbr.business_id
+LEFT JOIN business_images img
+       ON b.business_id = img.business_id AND img.is_primary = 1
+-- WHERE clause built dynamically in Python:
+-- (b.name LIKE %q% OR b.description LIKE %q% OR b.address LIKE %q%)
+-- AND b.category_id = %category_id%
+-- AND b.city LIKE %city%
+ORDER BY avg_rating DESC, b.name ASC;</pre>
+          </div>
+          <div class="query-tooltip">
+              <div class="tooltip-label"><i class="fa fa-circle-info"></i> What it does</div>
+              Powers the search page. Filters by keyword, category, and city — only the conditions the user filled in are added to the WHERE clause.
+            </div>
+        </div>
+
+        <!-- AQ5 -->
+        <div class="query-group" id="aq5">
+          <div class="query-card">
+            <div class="query-card-header">
+              <span class="query-number">AQ5</span>
+              <span class="query-title-text">List Distinct Cities (Search Filter)</span>
+              <span class="query-type-badge badge-dql">DQL</span>
+              <button class="btn-copy" data-target="code-aq5">
+                <i class="fa fa-copy me-1"></i>Copy
+              </button>
+            </div>
+            <pre class="query-code" id="code-aq5">SELECT DISTINCT city FROM businesses ORDER BY city;</pre>
+          </div>
+          <div class="query-tooltip">
+              <div class="tooltip-label"><i class="fa fa-circle-info"></i> What it does</div>
+              Returns a deduplicated list of all cities that have at least one business. Populates the city filter dropdown on the search page.
+            </div>
+        </div>
+
+        <!-- AQ6 -->
+        <div class="query-group" id="aq6">
+          <div class="query-card">
+            <div class="query-card-header">
+              <span class="query-number">AQ6</span>
+              <span class="query-title-text">Fetch Category by URL Slug</span>
+              <span class="query-type-badge badge-dql">DQL</span>
+              <button class="btn-copy" data-target="code-aq6">
+                <i class="fa fa-copy me-1"></i>Copy
+              </button>
+            </div>
+            <pre class="query-code" id="code-aq6">SELECT * FROM categories WHERE slug = %s;</pre>
+          </div>
+          <div class="query-tooltip">
+              <div class="tooltip-label"><i class="fa fa-circle-info"></i> What it does</div>
+              Finds a category by its URL slug (e.g. "restaurants"). Used to validate the URL and get the category ID before listing its businesses.
+            </div>
+        </div>
+
+        <!-- AQ7 -->
+        <div class="query-group" id="aq7">
+          <div class="query-card">
+            <div class="query-card-header">
+              <span class="query-number">AQ7</span>
+              <span class="query-title-text">Businesses by Category</span>
+              <span class="query-type-badge badge-dql">DQL</span>
+              <button class="btn-copy" data-target="code-aq7">
+                <i class="fa fa-copy me-1"></i>Copy
+              </button>
+            </div>
+            <pre class="query-code" id="code-aq7">SELECT b.business_id, b.name, b.city, b.address,
+       COALESCE(vbr.avg_rating, 0)   AS avg_rating,
+       COALESCE(vbr.review_count, 0) AS review_count,
+       img.image_url AS primary_image
+FROM businesses b
+LEFT JOIN vw_business_ratings vbr ON b.business_id = vbr.business_id
+LEFT JOIN business_images img
+       ON b.business_id = img.business_id AND img.is_primary = 1
+WHERE b.category_id = %s
+ORDER BY avg_rating DESC;</pre>
+          </div>
+          <div class="query-tooltip">
+              <div class="tooltip-label"><i class="fa fa-circle-info"></i> What it does</div>
+              Returns all businesses in a given category, ordered by highest rating first. Includes each business's cover image and rating summary.
+            </div>
+        </div>
+
+        <!-- AQ8 -->
+        <div class="query-group" id="aq8">
+          <div class="query-card">
+            <div class="query-card-header">
+              <span class="query-number">AQ8</span>
+              <span class="query-title-text">Business Detail — Core Info</span>
+              <span class="query-type-badge badge-dql">DQL</span>
+              <button class="btn-copy" data-target="code-aq8">
+                <i class="fa fa-copy me-1"></i>Copy
+              </button>
+            </div>
+            <pre class="query-code" id="code-aq8">SELECT b.*, c.name AS category_name, c.slug AS category_slug,
+       COALESCE(vbr.avg_rating, 0)   AS avg_rating,
+       COALESCE(vbr.review_count, 0) AS review_count
+FROM businesses b
+JOIN categories c ON b.category_id = c.category_id
+LEFT JOIN vw_business_ratings vbr ON b.business_id = vbr.business_id
+WHERE b.business_id = %s;</pre>
+          </div>
+          <div class="query-tooltip">
+              <div class="tooltip-label"><i class="fa fa-circle-info"></i> What it does</div>
+              Loads all columns for one business, plus its category name and slug, and aggregated rating stats. The first query to run on the business detail page.
+            </div>
+        </div>
+
+        <!-- AQ9 -->
+        <div class="query-group" id="aq9">
+          <div class="query-card">
+            <div class="query-card-header">
+              <span class="query-number">AQ9</span>
+              <span class="query-title-text">All Images for a Business</span>
+              <span class="query-type-badge badge-dql">DQL</span>
+              <button class="btn-copy" data-target="code-aq9">
+                <i class="fa fa-copy me-1"></i>Copy
+              </button>
+            </div>
+            <pre class="query-code" id="code-aq9">SELECT * FROM business_images
+WHERE business_id = %s
+ORDER BY is_primary DESC;</pre>
+          </div>
+          <div class="query-tooltip">
+              <div class="tooltip-label"><i class="fa fa-circle-info"></i> What it does</div>
+              Gets all images for a business, with the primary cover photo listed first. Used to build the photo gallery on the business detail page.
+            </div>
+        </div>
+
+        <!-- AQ10 -->
+        <div class="query-group" id="aq10">
+          <div class="query-card">
+            <div class="query-card-header">
+              <span class="query-number">AQ10</span>
+              <span class="query-title-text">Reviews with Reviewer Names</span>
+              <span class="query-type-badge badge-dql">DQL</span>
+              <button class="btn-copy" data-target="code-aq10">
+                <i class="fa fa-copy me-1"></i>Copy
+              </button>
+            </div>
+            <pre class="query-code" id="code-aq10">SELECT r.*, u.full_name AS reviewer_name
+FROM reviews r
+JOIN users u ON r.user_id = u.user_id
+WHERE r.business_id = %s
+ORDER BY r.created_at DESC;</pre>
+          </div>
+          <div class="query-tooltip">
+              <div class="tooltip-label"><i class="fa fa-circle-info"></i> What it does</div>
+              Loads all reviews for a business and joins each reviewer's name from the users table. Results are ordered newest first.
+            </div>
+        </div>
+
+        <!-- AQ11 -->
+        <div class="query-group" id="aq11">
+          <div class="query-card">
+            <div class="query-card-header">
+              <span class="query-number">AQ11</span>
+              <span class="query-title-text">Extension Table Queries (Specialisation)</span>
+              <span class="query-type-badge badge-dql">DQL</span>
+              <button class="btn-copy" data-target="code-aq11">
+                <i class="fa fa-copy me-1"></i>Copy
+              </button>
+            </div>
+            <pre class="query-code" id="code-aq11">-- Run only the query matching the business category_slug
+
+-- For restaurants:
+SELECT * FROM restaurants WHERE business_id = %s;
+
+-- For hotels:
+SELECT * FROM hotels WHERE business_id = %s;
+
+-- For salons:
+SELECT * FROM salons WHERE business_id = %s;</pre>
+          </div>
+          <div class="query-tooltip">
+              <div class="tooltip-label"><i class="fa fa-circle-info"></i> What it does</div>
+              Runs one of three queries depending on the business type — restaurants, hotels, or salons — to fetch the category-specific extra details.
+            </div>
+        </div>
+
+        <!-- AQ12 -->
+        <div class="query-group" id="aq12">
+          <div class="query-card">
+            <div class="query-card-header">
+              <span class="query-number">AQ12</span>
+              <span class="query-title-text">Rating Breakdown (Star Distribution)</span>
+              <span class="query-type-badge badge-dql">DQL</span>
+              <button class="btn-copy" data-target="code-aq12">
+                <i class="fa fa-copy me-1"></i>Copy
+              </button>
+            </div>
+            <pre class="query-code" id="code-aq12">SELECT rating, COUNT(*) AS count
+FROM reviews
+WHERE business_id = %s
+GROUP BY rating
+ORDER BY rating DESC;</pre>
+          </div>
+          <div class="query-tooltip">
+              <div class="tooltip-label"><i class="fa fa-circle-info"></i> What it does</div>
+              Counts how many reviews gave each star rating (1–5) for a business. Used to draw the animated rating-bar breakdown on the detail page.
+            </div>
+        </div>
+
+        <!-- AQ13 -->
+        <div class="query-group" id="aq13">
+          <div class="query-card">
+            <div class="query-card-header">
+              <span class="query-number">AQ13</span>
+              <span class="query-title-text">Nearby Businesses — Haversine Formula</span>
+              <span class="query-type-badge badge-dql">DQL</span>
+              <button class="btn-copy" data-target="code-aq13">
+                <i class="fa fa-copy me-1"></i>Copy
+              </button>
+            </div>
+            <pre class="query-code" id="code-aq13">SELECT
+    b.business_id, b.name, b.city, b.address,
+    c.name              AS category,
+    c.slug              AS category_slug,
+    c.icon              AS category_icon,
+    COALESCE(vbr.avg_rating,   0) AS avg_rating,
+    COALESCE(vbr.review_count, 0) AS review_count,
+    img.image_url                 AS primary_image,
+    ROUND(
+      6371 * 2 * ASIN(SQRT(
+        POWER(SIN(RADIANS(b.latitude  - %s) / 2), 2) +
+        COS(RADIANS(%s)) * COS(RADIANS(b.latitude))  *
+        POWER(SIN(RADIANS(b.longitude - %s) / 2), 2)
+      )), 2
+    ) AS distance_km
+FROM businesses b
+JOIN  categories c   ON b.category_id  = c.category_id
+LEFT JOIN vw_business_ratings vbr ON b.business_id  = vbr.business_id
+LEFT JOIN business_images img
+                     ON b.business_id  = img.business_id
+                    AND img.is_primary = 1
+WHERE b.latitude  IS NOT NULL
+  AND b.longitude IS NOT NULL
+HAVING distance_km <= %s
+ORDER BY distance_km ASC
+LIMIT 20;</pre>
+          </div>
+          <div class="query-tooltip">
+              <div class="tooltip-label"><i class="fa fa-circle-info"></i> What it does</div>
+              Finds businesses within a given distance (km) using the Haversine formula on GPS coordinates. Returns up to 20 results, sorted nearest first.
+            </div>
+        </div>
+
+        <!-- AQ14 -->
+        <div class="query-group" id="aq14">
+          <div class="query-card">
+            <div class="query-card-header">
+              <span class="query-number">AQ14</span>
+              <span class="query-title-text">Insert New Business</span>
+              <span class="query-type-badge badge-dml">DML</span>
+              <button class="btn-copy" data-target="code-aq14">
+                <i class="fa fa-copy me-1"></i>Copy
+              </button>
+            </div>
+            <pre class="query-code" id="code-aq14">INSERT INTO businesses
+    (name, address, city, latitude, longitude,
+     phone, email, website, description,
+     category_id, owner_id, is_verified)
+VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 0);
+-- owner_id is taken from session['owner_id'] (requires owner login)</pre>
+          </div>
+          <div class="query-tooltip">
+              <div class="tooltip-label"><i class="fa fa-circle-info"></i> What it does</div>
+              Inserts a new business. <code>owner_id</code> is taken from the logged-in owner's session — only authenticated owners can submit this form. <code>is_verified</code> starts at 0.
+            </div>
+        </div>
+
+        <!-- AQ15 -->
+        <div class="query-group" id="aq15">
+          <div class="query-card">
+            <div class="query-card-header">
+              <span class="query-number">AQ15</span>
+              <span class="query-title-text">Insert Business Image</span>
+              <span class="query-type-badge badge-dml">DML</span>
+              <button class="btn-copy" data-target="code-aq15">
+                <i class="fa fa-copy me-1"></i>Copy
+              </button>
+            </div>
+            <pre class="query-code" id="code-aq15">INSERT INTO business_images (business_id, image_url, is_primary)
+VALUES (%s, %s, 1);</pre>
+          </div>
+          <div class="query-tooltip">
+              <div class="tooltip-label"><i class="fa fa-circle-info"></i> What it does</div>
+              Saves the cover photo URL for a new business as the primary image (<code>is_primary = 1</code>). Only runs if a URL was provided.
+            </div>
+        </div>
+
+        <!-- AQ16 -->
+        <div class="query-group" id="aq16">
+          <div class="query-card">
+            <div class="query-card-header">
+              <span class="query-number">AQ16</span>
+              <span class="query-title-text">Insert Restaurant Extension Data</span>
+              <span class="query-type-badge badge-dml">DML</span>
+              <button class="btn-copy" data-target="code-aq16">
+                <i class="fa fa-copy me-1"></i>Copy
+              </button>
+            </div>
+            <pre class="query-code" id="code-aq16">INSERT INTO restaurants
+    (business_id, cuisine_type, price_range, has_delivery, seating_capacity)
+VALUES (%s, %s, %s, %s, %s);</pre>
+          </div>
+          <div class="query-tooltip">
+              <div class="tooltip-label"><i class="fa fa-circle-info"></i> What it does</div>
+              Inserts restaurant-specific details after a new restaurant business is created. Runs only when the selected category slug is "restaurants".
+            </div>
+        </div>
+
+        <!-- AQ17 -->
+        <div class="query-group" id="aq17">
+          <div class="query-card">
+            <div class="query-card-header">
+              <span class="query-number">AQ17</span>
+              <span class="query-title-text">Insert Hotel Extension Data</span>
+              <span class="query-type-badge badge-dml">DML</span>
+              <button class="btn-copy" data-target="code-aq17">
+                <i class="fa fa-copy me-1"></i>Copy
+              </button>
+            </div>
+            <pre class="query-code" id="code-aq17">INSERT INTO hotels
+    (business_id, star_rating, total_rooms, has_pool,
+     check_in_time, check_out_time)
+VALUES (%s, %s, %s, %s, %s, %s);</pre>
+          </div>
+          <div class="query-tooltip">
+              <div class="tooltip-label"><i class="fa fa-circle-info"></i> What it does</div>
+              Inserts hotel-specific details after a new hotel business is created. Runs only when the selected category slug is "hotels".
+            </div>
+        </div>
+
+        <!-- AQ18 -->
+        <div class="query-group" id="aq18">
+          <div class="query-card">
+            <div class="query-card-header">
+              <span class="query-number">AQ18</span>
+              <span class="query-title-text">Insert Salon Extension Data</span>
+              <span class="query-type-badge badge-dml">DML</span>
+              <button class="btn-copy" data-target="code-aq18">
+                <i class="fa fa-copy me-1"></i>Copy
+              </button>
+            </div>
+            <pre class="query-code" id="code-aq18">INSERT INTO salons
+    (business_id, services, gender_served, by_appointment)
+VALUES (%s, %s, %s, %s);</pre>
+          </div>
+          <div class="query-tooltip">
+              <div class="tooltip-label"><i class="fa fa-circle-info"></i> What it does</div>
+              Inserts salon-specific details after a new salon business is created. Runs only when the selected category slug is "salons".
+            </div>
+        </div>
+
+        <!-- AQ19 -->
+        <div class="query-group" id="aq19">
+          <div class="query-card">
+            <div class="query-card-header">
+              <span class="query-number">AQ19</span>
+              <span class="query-title-text">Submit a Review</span>
+              <span class="query-type-badge badge-dml">DML</span>
+              <button class="btn-copy" data-target="code-aq19">
+                <i class="fa fa-copy me-1"></i>Copy
+              </button>
+            </div>
+            <pre class="query-code" id="code-aq19">INSERT INTO reviews (user_id, business_id, rating, title, body)
+VALUES (%s, %s, %s, %s, %s);</pre>
+          </div>
+          <div class="query-tooltip">
+              <div class="tooltip-label"><i class="fa fa-circle-info"></i> What it does</div>
+              Submits a review. If the user already reviewed this business, the unique constraint raises an error and Flask shows a warning message instead.
+            </div>
+        </div>
+
+        <!-- AQ20 -->
+        <div class="query-group" id="aq20">
+          <div class="query-card">
+            <div class="query-card-header">
+              <span class="query-number">AQ20</span>
+              <span class="query-title-text">Report 1 — Top Rated per Category</span>
+              <span class="query-type-badge badge-dql">DQL</span>
+              <button class="btn-copy" data-target="code-aq20">
+                <i class="fa fa-copy me-1"></i>Copy
+              </button>
+            </div>
+            <pre class="query-code" id="code-aq20">SELECT
+    b.business_id,
+    c.name              AS category,
+    b.name              AS business,
+    b.city,
+    ROUND(AVG(r.rating), 1)  AS avg_rating,
+    COUNT(r.review_id)       AS review_count
+FROM reviews r
+JOIN businesses b  ON r.business_id = b.business_id
+JOIN categories c  ON b.category_id = c.category_id
+GROUP BY b.business_id, c.name, b.name, b.city
+ORDER BY c.name ASC, avg_rating DESC;</pre>
+          </div>
+          <div class="query-tooltip">
+              <div class="tooltip-label"><i class="fa fa-circle-info"></i> What it does</div>
+              Lists every reviewed business with its average rating and review count, grouped by category. Powers the main table in Report 1.
+            </div>
+        </div>
+
+        <!-- AQ21 -->
+        <div class="query-group" id="aq21">
+          <div class="query-card">
+            <div class="query-card-header">
+              <span class="query-number">AQ21</span>
+              <span class="query-title-text">Chart Data — Average Rating per Category</span>
+              <span class="query-type-badge badge-dql">DQL</span>
+              <button class="btn-copy" data-target="code-aq21">
+                <i class="fa fa-copy me-1"></i>Copy
+              </button>
+            </div>
+            <pre class="query-code" id="code-aq21">SELECT c.name AS category, ROUND(AVG(r.rating), 2) AS avg_rating
+FROM reviews r
+JOIN businesses b ON r.business_id = b.business_id
+JOIN categories c ON b.category_id = c.category_id
+GROUP BY c.name
+ORDER BY avg_rating DESC;</pre>
+          </div>
+          <div class="query-tooltip">
+              <div class="tooltip-label"><i class="fa fa-circle-info"></i> What it does</div>
+              Calculates the average rating for each category across all businesses. The results feed the bar chart on the Reports page.
+            </div>
+        </div>
+
+        <!-- AQ22 -->
+        <div class="query-group" id="aq22">
+          <div class="query-card">
+            <div class="query-card-header">
+              <span class="query-number">AQ22</span>
+              <span class="query-title-text">Report 2 — Most Reviewed Businesses</span>
+              <span class="query-type-badge badge-dql">DQL</span>
+              <button class="btn-copy" data-target="code-aq22">
+                <i class="fa fa-copy me-1"></i>Copy
+              </button>
+            </div>
+            <pre class="query-code" id="code-aq22">SELECT b.name, b.city, c.name AS category,
+       COUNT(r.review_id)       AS review_count,
+       ROUND(AVG(r.rating), 1)  AS avg_rating
+FROM reviews r
+JOIN businesses b ON r.business_id = b.business_id
+JOIN categories c ON b.category_id = c.category_id
+GROUP BY b.business_id, b.name, b.city, c.name
+ORDER BY review_count DESC
+LIMIT 10;</pre>
+          </div>
+          <div class="query-tooltip">
+              <div class="tooltip-label"><i class="fa fa-circle-info"></i> What it does</div>
+              Finds the 10 businesses with the most reviews. Shows both review count and average rating so popularity and quality can be compared.
+            </div>
+        </div>
+
+        <!-- AQ23 -->
+        <div class="query-group" id="aq23">
+          <div class="query-card">
+            <div class="query-card-header">
+              <span class="query-number">AQ23</span>
+              <span class="query-title-text">Monthly Review Trend (24-Month Window)</span>
+              <span class="query-type-badge badge-dql">DQL</span>
+              <button class="btn-copy" data-target="code-aq23">
+                <i class="fa fa-copy me-1"></i>Copy
+              </button>
+            </div>
+            <pre class="query-code" id="code-aq23">SELECT
+    DATE_FORMAT(created_at, '%Y-%m') AS month,
+    COUNT(*) AS review_count
+FROM reviews
+WHERE created_at >= DATE_SUB(NOW(), INTERVAL 24 MONTH)
+GROUP BY month
+ORDER BY month ASC;</pre>
+          </div>
+          <div class="query-tooltip">
+              <div class="tooltip-label"><i class="fa fa-circle-info"></i> What it does</div>
+              Counts reviews per month over a rolling 24-month window. The results feed the trend line chart on the Reports page.
+            </div>
+        </div>
+
+
+        <!-- AQ24 -->
+        <div class="query-group" id="aq24">
+          <div class="query-card">
+            <div class="query-card-header">
+              <span class="query-number">AQ24</span>
+              <span class="query-title-text">Register New Customer Account</span>
+              <span class="query-type-badge badge-dml">DML</span>
+              <button class="btn-copy" data-target="code-aq24">
+                <i class="fa fa-copy me-1"></i>Copy
+              </button>
+            </div>
+            <pre class="query-code" id="code-aq24">INSERT INTO users (full_name, email, password_hash, phone)
+VALUES (%s, %s, %s, %s);
+-- password_hash generated by: bcrypt.generate_password_hash(password)</pre>
+          </div>
+          <div class="query-tooltip">
+              <div class="tooltip-label"><i class="fa fa-circle-info"></i> What it does</div>
+              Creates a new customer account. The plain-text password is hashed with bcrypt before this query runs — the raw password is never stored.
+            </div>
+        </div>
+
+        <!-- AQ25 -->
+        <div class="query-group" id="aq25">
+          <div class="query-card">
+            <div class="query-card-header">
+              <span class="query-number">AQ25</span>
+              <span class="query-title-text">Register New Owner Account</span>
+              <span class="query-type-badge badge-dml">DML</span>
+              <button class="btn-copy" data-target="code-aq25">
+                <i class="fa fa-copy me-1"></i>Copy
+              </button>
+            </div>
+            <pre class="query-code" id="code-aq25">INSERT INTO owners (full_name, email, password_hash, phone)
+VALUES (%s, %s, %s, %s);
+-- password_hash generated by: bcrypt.generate_password_hash(password)</pre>
+          </div>
+          <div class="query-tooltip">
+              <div class="tooltip-label"><i class="fa fa-circle-info"></i> What it does</div>
+              Creates a new business owner account in the separate <strong>owners</strong> table. Owners can then add and manage business listings.
+            </div>
+        </div>
+
+        <!-- AQ26 -->
+        <div class="query-group" id="aq26">
+          <div class="query-card">
+            <div class="query-card-header">
+              <span class="query-number">AQ26</span>
+              <span class="query-title-text">Login — Look Up Customer by Email</span>
+              <span class="query-type-badge badge-dql">DQL</span>
+              <button class="btn-copy" data-target="code-aq26">
+                <i class="fa fa-copy me-1"></i>Copy
+              </button>
+            </div>
+            <pre class="query-code" id="code-aq26">SELECT * FROM users WHERE email = %s;
+-- Flask then verifies: bcrypt.check_password_hash(row['password_hash'], password)</pre>
+          </div>
+          <div class="query-tooltip">
+              <div class="tooltip-label"><i class="fa fa-circle-info"></i> What it does</div>
+              Fetches a customer by email. Password verification happens in Flask using bcrypt — the plain-text password is never sent to the database.
+            </div>
+        </div>
+
+        <!-- AQ27 -->
+        <div class="query-group" id="aq27">
+          <div class="query-card">
+            <div class="query-card-header">
+              <span class="query-number">AQ27</span>
+              <span class="query-title-text">Login — Look Up Owner by Email</span>
+              <span class="query-type-badge badge-dql">DQL</span>
+              <button class="btn-copy" data-target="code-aq27">
+                <i class="fa fa-copy me-1"></i>Copy
+              </button>
+            </div>
+            <pre class="query-code" id="code-aq27">SELECT * FROM owners WHERE email = %s;
+-- Flask then verifies: bcrypt.check_password_hash(row['password_hash'], password)</pre>
+          </div>
+          <div class="query-tooltip">
+              <div class="tooltip-label"><i class="fa fa-circle-info"></i> What it does</div>
+              Same as AQ26 but queries the <strong>owners</strong> table. Customers and owners have separate login flows and separate session keys.
+            </div>
+        </div>
+
+        <!-- AQ28 -->
+        <div class="query-group" id="aq28">
+          <div class="query-card">
+            <div class="query-card-header">
+              <span class="query-number">AQ28</span>
+              <span class="query-title-text">Check If User Already Reviewed a Business</span>
+              <span class="query-type-badge badge-dql">DQL</span>
+              <button class="btn-copy" data-target="code-aq28">
+                <i class="fa fa-copy me-1"></i>Copy
+              </button>
+            </div>
+            <pre class="query-code" id="code-aq28">SELECT 1 FROM reviews
+WHERE user_id = %s AND business_id = %s
+LIMIT 1;</pre>
+          </div>
+          <div class="query-tooltip">
+              <div class="tooltip-label"><i class="fa fa-circle-info"></i> What it does</div>
+              Checks if the logged-in user has already reviewed this business. If a row is found, Flask hides the review form and shows a thank-you message instead.
+            </div>
+        </div>
+
+        <!-- AQ29 -->
+        <div class="query-group" id="aq29">
+          <div class="query-card">
+            <div class="query-card-header">
+              <span class="query-number">AQ29</span>
+              <span class="query-title-text">Get User Location for Nearby Pre-fill</span>
+              <span class="query-type-badge badge-dql">DQL</span>
+              <button class="btn-copy" data-target="code-aq29">
+                <i class="fa fa-copy me-1"></i>Copy
+              </button>
+            </div>
+            <pre class="query-code" id="code-aq29">SELECT city, latitude, longitude FROM users
+WHERE user_id = %s;</pre>
+          </div>
+          <div class="query-tooltip">
+              <div class="tooltip-label"><i class="fa fa-circle-info"></i> What it does</div>
+              Fetches the logged-in customer's saved city and GPS coordinates to pre-fill the Nearby search form automatically, skipping the manual location step.
+            </div>
+        </div>
+
+      </div>{# end app query-list #}
+
+    </div>{# end col-lg-9 #}
+  </div>{# end row #}
+</div>{# end container #}
+
+{% endblock %}
+
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+
+  /* ── Copy-to-clipboard ───────────────────── */
+  document.querySelectorAll('.btn-copy').forEach(btn => {
+    btn.addEventListener('click', function () {
+      const target = document.getElementById(this.dataset.target);
+      if (!target) return;
+      navigator.clipboard.writeText(target.textContent.trim()).then(() => {
+        this.classList.add('copied');
+        this.innerHTML = '<i class="fa fa-check me-1"></i>Copied!';
+        setTimeout(() => {
+          this.classList.remove('copied');
+          this.innerHTML = '<i class="fa fa-copy me-1"></i>Copy';
+        }, 2000);
+      });
+    });
+  });
+
+  /* ── Smooth scroll for index links ──────── */
+  document.querySelectorAll('.sql-index a[href^="#"]').forEach(link => {
+    link.addEventListener('click', function (e) {
+      e.preventDefault();
+      const target = document.querySelector(this.getAttribute('href'));
+      if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    });
+  });
+
+});
+</script>
+{% endblock %}
